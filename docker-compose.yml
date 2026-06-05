@@ -1,0 +1,74 @@
+services:
+
+  # ──────────────────────────────────────────
+  # Homarr — 홈 대시보드 (서비스 바로가기)
+  # 접속: http://서버IP:7575
+  # ──────────────────────────────────────────
+  homarr:
+    image: ghcr.io/ajnart/homarr:latest
+    container_name: homarr
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - homarr_config:/app/data/configs
+      - homarr_icons:/app/public/icons
+      - homarr_data:/data
+    ports:
+      - "7575:7575"
+
+  # ──────────────────────────────────────────
+  # Portainer — Docker 컨테이너 관리
+  # 접속: http://서버IP:9000
+  # ──────────────────────────────────────────
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - portainer_data:/data
+    ports:
+      - "9000:9000"
+
+  # ──────────────────────────────────────────
+  # Glances — 시스템 모니터링 (CPU / RAM / 디스크)
+  # 접속: http://서버IP:61208
+  # ──────────────────────────────────────────
+  glances:
+    image: nicolargo/glances:latest-full
+    container_name: glances
+    restart: unless-stopped
+    pid: host
+    privileged: true
+    environment:
+      - GLANCES_OPT=-w
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/os-release:/etc/os-release:ro
+    ports:
+      - "61208:61208"
+
+  # ──────────────────────────────────────────
+  # FileBrowser — 웹 파일 탐색기
+  # 접속: http://서버IP:8080
+  # 초기 계정: admin / admin (첫 로그인 후 변경 필수)
+  # ──────────────────────────────────────────
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    container_name: filebrowser
+    restart: unless-stopped
+    volumes:
+      - /:/srv/host:ro          # 서버 전체 파일시스템 (읽기 전용)
+      - ~/data:/srv/data        # 읽기/쓰기 가능한 데이터 폴더
+      - filebrowser_db:/database
+    ports:
+      - "8080:80"
+    environment:
+      - FB_BASEURL=/
+
+volumes:
+  homarr_config:
+  homarr_icons:
+  homarr_data:
+  portainer_data:
+  filebrowser_db:
