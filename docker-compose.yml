@@ -105,16 +105,23 @@ services:
 
   # ──────────────────────────────────────────
   # Wetty — 브라우저 웹 터미널
-  # 접속: http://서버IP:3000
-  # Tailscale로 외부에서 접속 → 서버 터미널 사용 가능
+  # 접속: https://tak.tail9d038f.ts.net:3000
   # ──────────────────────────────────────────
   wetty:
     image: wettyoss/wetty:latest
     container_name: wetty
     restart: unless-stopped
+    volumes:
+      - /etc/tailscale-certs:/certs:ro
     ports:
       - "3000:3000"
-    command: --ssh-host=host.docker.internal --ssh-port=22 --ssh-user=tak --base=/
+    command: >
+      --ssh-host=host.docker.internal
+      --ssh-port=22
+      --ssh-user=tak
+      --base=/
+      --ssl-key=/certs/tak.tail9d038f.ts.net.key
+      --ssl-cert=/certs/tak.tail9d038f.ts.net.crt
 
 volumes:
   homarr_config:
