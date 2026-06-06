@@ -138,6 +138,19 @@ services:
     environment:
       - TZ=Asia/Seoul
 
+  # ──────────────────────────────────────────
+  # Uptime Kuma — 서비스 모니터링 + 알림
+  # 접속: http://서버IP:3001
+  # ──────────────────────────────────────────
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    container_name: uptime-kuma
+    restart: unless-stopped
+    volumes:
+      - uptime_kuma_data:/app/data
+    ports:
+      - "3001:3001"
+
 volumes:
   homarr_config:
   homarr_icons:
@@ -147,3 +160,4 @@ volumes:
   vaultwarden_data:
   catalog_jobs:
   homeassistant_config:
+  uptime_kuma_data:
