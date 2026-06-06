@@ -103,6 +103,19 @@ services:
       - CATALOG_DATA_DIR=/data/jobs
       - CATALOG_JOB_TTL=86400   # 결과 파일 보관 시간(초). 기본 24시간
 
+  # ──────────────────────────────────────────
+  # Wetty — 브라우저 웹 터미널
+  # 접속: http://서버IP:3000
+  # Tailscale로 외부에서 접속 → 서버 터미널 사용 가능
+  # ──────────────────────────────────────────
+  wetty:
+    image: wettyoss/wetty:latest
+    container_name: wetty
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    command: --ssh-host=host.docker.internal --ssh-port=22 --ssh-user=tak --base=/
+
 volumes:
   homarr_config:
   homarr_icons:
