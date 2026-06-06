@@ -66,9 +66,26 @@ services:
     environment:
       - FB_BASEURL=/
 
+  # ──────────────────────────────────────────
+  # Vaultwarden — 자체 호스팅 비밀번호 관리자
+  # 접속: http://서버IP:8181
+  # Bitwarden 앱/확장 프로그램과 호환
+  # ──────────────────────────────────────────
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    restart: unless-stopped
+    volumes:
+      - vaultwarden_data:/data
+    ports:
+      - "8181:80"
+    environment:
+      - SIGNUPS_ALLOWED=true   # 계정 만든 후 false 로 변경 권장
+
 volumes:
   homarr_config:
   homarr_icons:
   homarr_data:
   portainer_data:
   filebrowser_db:
+  vaultwarden_data:
