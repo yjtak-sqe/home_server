@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+catalog_manager/web/_jobs/
+catalog_manager/raw_data/
+catalog_manager/output/
+catalog_manager/build/
+catalog_manager/dist/
+.DS_Store

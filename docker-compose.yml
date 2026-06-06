@@ -85,6 +85,24 @@ services:
       - ROCKET_TLS={certs="/certs/tak.tail9d038f.ts.net.crt",key="/certs/tak.tail9d038f.ts.net.key"}
       - ROCKET_PORT=8181
 
+  # ──────────────────────────────────────────
+  # 카탈로그 교정 시스템 — 웹 앱 (와이프 업무용)
+  # 접속: http://서버IP:8090
+  # 기획자료 ↔ 카탈로그 비교 / 새 카탈로그 생성
+  # ──────────────────────────────────────────
+  catalog-manager:
+    build: ./catalog_manager
+    image: catalog-manager:latest
+    container_name: catalog-manager
+    restart: unless-stopped
+    volumes:
+      - catalog_jobs:/data/jobs
+    ports:
+      - "8090:8000"
+    environment:
+      - CATALOG_DATA_DIR=/data/jobs
+      - CATALOG_JOB_TTL=86400   # 결과 파일 보관 시간(초). 기본 24시간
+
 volumes:
   homarr_config:
   homarr_icons:
@@ -92,3 +110,4 @@ volumes:
   portainer_data:
   filebrowser_db:
   vaultwarden_data:
+  catalog_jobs:

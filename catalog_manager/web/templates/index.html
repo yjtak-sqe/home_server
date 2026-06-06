@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{APP_NAME}}</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>📚</text></svg>" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">📚</span>
+      <div>
+        <h1>{{APP_NAME}}</h1>
+        <span class="ver">v{{APP_VERSION}} · 신세계 문화아카데미</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- 모드 전환 -->
+    <nav class="tabs" id="modeTabs">
+      <button class="tab active" data-mode="review">🔍 카탈로그 검토</button>
+      <button class="tab" data-mode="build">✨ 새 카탈로그 생성</button>
+    </nav>
+
+    <!-- ───────────── 검토 모드 ───────────── -->
+    <section class="mode" id="mode-review">
+      <div class="panel">
+        <h2>1. 파일 업로드</h2>
+        <p class="hint">세 파일 모두 필요합니다. 카탈로그·기획자료는 <b>.xlsx</b>, 랜딩주소는 .xls/.xlsx 가능합니다.</p>
+        <div class="uploads">
+          <label class="drop" data-for="rv-planning">
+            <span class="drop-ico">📋</span>
+            <span class="drop-title">기획자료</span>
+            <span class="drop-name" id="name-rv-planning">파일 선택</span>
+            <input type="file" id="rv-planning" accept=".xlsx,.xls" hidden />
+          </label>
+          <label class="drop" data-for="rv-catalog">
+            <span class="drop-ico">📕</span>
+            <span class="drop-title">카탈로그</span>
+            <span class="drop-name" id="name-rv-catalog">파일 선택</span>
+            <input type="file" id="rv-catalog" accept=".xlsx" hidden />
+          </label>
+          <label class="drop" data-for="rv-landing">
+            <span class="drop-ico">🔗</span>
+            <span class="drop-title">랜딩주소</span>
+            <span class="drop-name" id="name-rv-landing">파일 선택</span>
+            <input type="file" id="rv-landing" accept=".xlsx,.xls" hidden />
+          </label>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>2. 학기 설정</h2>
+        <div class="settings">
+          <label>연도
+            <input type="text" id="rv-year" inputmode="numeric" placeholder="2026" />
+          </label>
+          <label>학기
+            <select id="rv-smst"></select>
+          </label>
+        </div>
+        <details class="adv">
+          <summary>요일별 기본 일자 (선택)</summary>
+          <p class="hint">기획자료 강좌명에 일자가 없을 때 사용됩니다. 콤마로 월~일 7개.</p>
+          <input type="text" id="rv-dates" class="dates" placeholder="3.2 - 5.18, 3.3 - 5.19, ..." />
+        </details>
+        <button class="run-btn" id="btn-review">검토 시작</button>
+      </div>
+
+      <div class="panel results" id="rv-results" hidden></div>
+    </section>
+
+    <!-- ───────────── 생성 모드 ───────────── -->
+    <section class="mode" id="mode-build" hidden>
+      <div class="panel">
+        <h2>1. 파일 업로드</h2>
+        <p class="hint">카탈로그_공란(.xlsx)·랜딩주소는 필수, 기획자료는 선택입니다.<br>기획자료를 넣으면 요일·시간·강사명·강좌비까지 자동으로 채워집니다.</p>
+        <div class="uploads">
+          <label class="drop" data-for="bd-template">
+            <span class="drop-ico">📄</span>
+            <span class="drop-title">카탈로그_공란 <em>필수</em></span>
+            <span class="drop-name" id="name-bd-template">파일 선택</span>
+            <input type="file" id="bd-template" accept=".xlsx" hidden />
+          </label>
+          <label class="drop" data-for="bd-landing">
+            <span class="drop-ico">🔗</span>
+            <span class="drop-title">랜딩주소 <em>필수</em></span>
+            <span class="drop-name" id="name-bd-landing">파일 선택</span>
+            <input type="file" id="bd-landing" accept=".xlsx,.xls" hidden />
+          </label>
+          <label class="drop" data-for="bd-planning">
+            <span class="drop-ico">📋</span>
+            <span class="drop-title">기획자료 <em class="opt">선택</em></span>
+            <span class="drop-name" id="name-bd-planning">파일 선택</span>
+            <input type="file" id="bd-planning" accept=".xlsx,.xls" hidden />
+          </label>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>2. 학기 설정</h2>
+        <div class="settings">
+          <label>연도
+            <input type="text" id="bd-year" inputmode="numeric" placeholder="2026" />
+          </label>
+          <label>학기
+            <select id="bd-smst"></select>
+          </label>
+        </div>
+        <details class="adv">
+          <summary>요일별 기본 일자 (선택)</summary>
+          <input type="text" id="bd-dates" class="dates" placeholder="3.2 - 5.18, 3.3 - 5.19, ..." />
+        </details>
+        <button class="run-btn" id="btn-build">새 카탈로그 생성</button>
+      </div>
+
+      <div class="panel results" id="bd-results" hidden></div>
+    </section>
+  </main>
+
+  <!-- 처리중 오버레이 -->
+  <div class="overlay" id="overlay" hidden>
+    <div class="spinner"></div>
+    <p id="overlay-text">처리 중...</p>
+  </div>
+
+  <footer class="foot">core 로직은 데스크톱 버전과 100% 동일하게 공유됩니다.</footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

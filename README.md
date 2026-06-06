@@ -10,6 +10,8 @@ Docker Compose로 구성된 홈 서버 컨트롤 패널입니다.
 | **Portainer** | `http://서버IP:9000` | Docker 컨테이너 관리 |
 | **Glances** | `http://서버IP:61208` | CPU / RAM / 디스크 실시간 모니터링 |
 | **FileBrowser** | `http://서버IP:8080` | 웹 파일 탐색기 |
+| **Vaultwarden** | `https://tak.tail9d038f.ts.net:8181` | 비밀번호 관리자 (Bitwarden 호환) |
+| **카탈로그 교정** | `http://서버IP:8090` | 카탈로그 검토·생성 웹앱 ([상세](catalog_manager/web/README.md)) |
 
 ## 시작하기
 
