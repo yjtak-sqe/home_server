@@ -68,7 +68,7 @@ services:
 
   # ──────────────────────────────────────────
   # Vaultwarden — 자체 호스팅 비밀번호 관리자
-  # 접속: http://서버IP:8181
+  # 접속: https://tak.tail9d038f.ts.net:8181
   # Bitwarden 앱/확장 프로그램과 호환
   # ──────────────────────────────────────────
   vaultwarden:
@@ -77,10 +77,13 @@ services:
     restart: unless-stopped
     volumes:
       - vaultwarden_data:/data
+      - /etc/tailscale-certs:/certs:ro
     ports:
-      - "8181:80"
+      - "8181:8181"
     environment:
       - SIGNUPS_ALLOWED=true   # 계정 만든 후 false 로 변경 권장
+      - ROCKET_TLS={certs="/certs/tak.tail9d038f.ts.net.crt",key="/certs/tak.tail9d038f.ts.net.key"}
+      - ROCKET_PORT=8181
 
 volumes:
   homarr_config:
