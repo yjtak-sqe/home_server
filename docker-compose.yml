@@ -123,6 +123,21 @@ services:
       --ssl-key=/certs/tak.tail9d038f.ts.net.key
       --ssl-cert=/certs/tak.tail9d038f.ts.net.crt
 
+  # ──────────────────────────────────────────
+  # Home Assistant — 홈 IoT 통합 제어
+  # 접속: http://서버IP:8123
+  # ──────────────────────────────────────────
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: homeassistant
+    restart: unless-stopped
+    network_mode: host        # IoT 기기 로컬 탐색에 필요
+    volumes:
+      - homeassistant_config:/config
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - TZ=Asia/Seoul
+
 volumes:
   homarr_config:
   homarr_icons:
@@ -131,3 +146,4 @@ volumes:
   filebrowser_db:
   vaultwarden_data:
   catalog_jobs:
+  homeassistant_config:
