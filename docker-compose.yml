@@ -151,6 +151,28 @@ services:
     ports:
       - "3001:3001"
 
+  # ──────────────────────────────────────────
+  # code-server — 브라우저 VS Code IDE
+  # 접속: https://tak.tail9d038f.ts.net:8443
+  # 외부에서 브라우저로 완전한 VS Code 환경 사용
+  # ──────────────────────────────────────────
+  code-server:
+    image: lscr.io/linuxserver/code-server:latest
+    container_name: code-server
+    restart: unless-stopped
+    volumes:
+      - /home/tak:/home/tak                  # 서버 홈 디렉토리 직접 접근
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - code_server_config:/config
+    ports:
+      - "8443:8443"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Seoul
+      - PASSWORD=                            # 비밀번호 직접 설정 필요 (아래 참고)
+      - SUDO_PASSWORD=                       # sudo 비밀번호 (선택)
+
 volumes:
   homarr_config:
   homarr_icons:
@@ -161,3 +183,4 @@ volumes:
   catalog_jobs:
   homeassistant_config:
   uptime_kuma_data:
+  code_server_config:
