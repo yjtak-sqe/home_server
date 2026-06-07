@@ -30,10 +30,9 @@ _DAY_ORDER = ["월", "화", "수", "목", "금", "토", "일"]
 # ── 작업 폴더 관리 ────────────────────────────────────────────────────────
 
 def _new_job() -> tuple[str, str]:
-    """새 작업 ID와 폴더(in/out 하위 포함)를 생성합니다."""
+    """새 작업 ID와 출력 폴더를 생성합니다."""
     job_id = datetime.now().strftime("%Y%m%d_%H%M%S_") + uuid.uuid4().hex[:6]
     base = os.path.join(JOBS_DIR, job_id)
-    os.makedirs(os.path.join(base, "in"), exist_ok=True)
     os.makedirs(os.path.join(base, "out"), exist_ok=True)
     return job_id, base
 
@@ -132,6 +131,37 @@ def run_review(
     comparison = match_catalog_to_planning(planning_df, catalog_dict, dates)
     url_results = check_landing_urls(catalog_dict, landing_df, year, smst)
 
+    # 순회 1회로 통계 + 행 변환 동시 처리
+    comp_rows = []
+    stats = {"total": 0, "mismatch": 0, "fuzzy": 0, "no_match": 0, "ok": 0}
+    for r in comparison:
+        comp_rows.append(_comparison_row(r))
+        stats["total"] += 1
+        mt = r["match_type"]
+        if r["mismatches"]:
+            stats["mismatch"] += 1
+        if mt == "fuzzy":
+            stats["fuzzy"] += 1
+        elif mt == "no_match":
+            stats["no_match"] += 1
+        elif mt == "exact" and not r["mismatches"]:
+            stats["ok"] += 1
+
+    url_rows = []
+    url_stats = {"total": 0, "ok": 0, "missing": 0, "error": 0}
+    for r in url_results:
+        url_rows.append(_url_row(r))
+        url_stats["total"] += 1
+        s = r["status"]
+        if s == "ok":
+            url_stats["ok"] += 1
+        elif s == "url_missing":
+            url_stats["missing"] += 1
+        else:
+            url_stats["error"] += 1
+
+    fuzzy_rows = [r for r in comp_rows if r["match_type"] == "fuzzy"]
+
     # ── 결과 파일 생성 ──
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     files: dict[str, str] = {}
@@ -140,14 +170,12 @@ def run_review(
     exporters.export_corrected_catalog(catalog_path, comparison, url_results, corrected)
     files["corrected"] = os.path.basename(corrected)
 
-    fuzzy_count = sum(1 for r in comparison if r["match_type"] == "fuzzy")
-    if fuzzy_count:
+    if stats["fuzzy"]:
         fuzzy_file = os.path.join(out, f"유사강좌명_검토_{ts}.xlsx")
         exporters.export_fuzzy_review(comparison, fuzzy_file)
         files["fuzzy"] = os.path.basename(fuzzy_file)
 
-    url_err_count = sum(1 for r in url_results if r["status"] != "ok")
-    if url_err_count:
+    if url_stats["error"] + url_stats["missing"]:
         url_file = os.path.join(out, f"URL오류목록_{ts}.xlsx")
         exporters.export_url_errors(url_results, url_file)
         files["url_errors"] = os.path.basename(url_file)
@@ -155,28 +183,6 @@ def run_review(
     csv_file = os.path.join(out, f"비교결과_{ts}.csv")
     exporters.export_comparison_csv(comparison, csv_file)
     files["csv"] = os.path.basename(csv_file)
-
-    # ── UI용 구조화 ──
-    comp_rows = [_comparison_row(r) for r in comparison]
-    url_rows = [_url_row(r) for r in url_results]
-    fuzzy_rows = [r for r in comp_rows if r["match_type"] == "fuzzy"]
-
-    stats = {
-        "total": len(comparison),
-        "mismatch": sum(1 for r in comparison if r["mismatches"]),
-        "fuzzy": fuzzy_count,
-        "no_match": sum(1 for r in comparison if r["match_type"] == "no_match"),
-        "ok": sum(
-            1 for r in comparison
-            if r["match_type"] == "exact" and not r["mismatches"]
-        ),
-    }
-    url_stats = {
-        "total": len(url_results),
-        "ok": sum(1 for r in url_results if r["status"] == "ok"),
-        "missing": sum(1 for r in url_results if r["status"] == "url_missing"),
-        "error": sum(1 for r in url_results if r["status"] == "mismatch"),
-    }
 
     return {
         "job_id": job_id,

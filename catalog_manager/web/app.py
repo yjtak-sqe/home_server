@@ -12,6 +12,7 @@ import sys
 import shutil
 import tempfile
 import traceback
+from contextlib import asynccontextmanager
 
 # 프로젝트 루트(catalog_manager)를 import 경로에 추가 — core/, config 임포트용
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -29,14 +30,15 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(HERE, "static")
 TEMPLATE_DIR = os.path.join(HERE, "templates")
 
-app = FastAPI(title=APP_NAME, version=APP_VERSION)
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
-
-@app.on_event("startup")
-def _startup():
+@asynccontextmanager
+async def _lifespan(app):
     os.makedirs(service.JOBS_DIR, exist_ok=True)
     service.cleanup_old_jobs()
+    yield
+
+
+app = FastAPI(title=APP_NAME, version=APP_VERSION, lifespan=_lifespan)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 # ── 업로드 헬퍼 ───────────────────────────────────────────────────────────
