@@ -153,14 +153,12 @@ function updateUI(s) {
 // ── API 호출 ─────────────────────────────────────────────────────────────
 async function toggleBot() {
   const ticker = document.getElementById('tickerSel').value;
-  const amount = parseFloat(document.getElementById('tradeAmt').value);
 
   if (botRunning) {
     await fetch('/api/stop', { method: 'POST' });
   } else {
     const body = {
       ticker,
-      trade_amount: amount,
       use_golden_cross: document.getElementById('chkGolden').checked,
       use_rsi_buy: document.getElementById('chkRsiBuy').checked,
       use_rsi_sell: document.getElementById('chkRsiSell').checked,

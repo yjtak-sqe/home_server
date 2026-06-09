@@ -124,8 +124,8 @@ async def trading_loop(on_update: Callable):
             await _refresh_balances()
 
             if state._upbit:
-                if signal == "buy" and state.balance_krw >= state.trade_amount:
-                    amount = round(state.trade_amount * 0.9995)  # 수수료 0.05% 제외
+                if signal == "buy" and state.balance_krw >= 5000:
+                    amount = round(state.balance_krw * 0.9995)  # 수수료 0.05% 제외 후 전액
                     result = state._upbit.buy_market_order(state.ticker, amount)
                     if result and isinstance(result, dict) and result.get("uuid"):
                         _log_trade("buy", price, state.trade_amount, result.get("uuid", ""))
