@@ -13,12 +13,14 @@ body { background: #1a237e; display: flex; justify-content: center; align-items:
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 <script>
 const W = 900, H = 580;
-const CS = 84;   // cell size (square)
-const GAP = 5;
-const S_PARK = 0.64, S_DRAG = 0.70, S_BOX = 0.46;
+const CS = 92;   // cell pitch (center-to-center)
+const GAP = 0;
+const SVG_W = 58, SVG_H = 126;
+const S_PARK = 0.78, S_DRAG = 0.72, S_BOX = 0.40;
+// 주차 시 차 렌더 크기: 45 × 98 px
 
-// ── 탑뷰 자동차 SVG (흰색 차체 → Phaser tint 로 채색) ─────────────────────
-const CAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="58" height="104">
+// ── 탑뷰 자동차 SVG (세로로 더 긴 버전, 흰색 차체 → Phaser tint 채색) ───────
+const CAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="58" height="126">
   <defs>
     <linearGradient id="body" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0%"   stop-color="#ccc"/>
@@ -36,55 +38,53 @@ const CAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="58" height="104"
     </filter>
   </defs>
   <!-- 뒷바퀴 -->
-  <rect x="1"  y="13" width="12" height="20" rx="5" fill="#1a1a1a"/>
-  <rect x="45" y="13" width="12" height="20" rx="5" fill="#1a1a1a"/>
+  <rect x="1"  y="16" width="12" height="24" rx="5" fill="#1a1a1a"/>
+  <rect x="45" y="16" width="12" height="24" rx="5" fill="#1a1a1a"/>
   <!-- 앞바퀴 -->
-  <rect x="1"  y="71" width="12" height="20" rx="5" fill="#1a1a1a"/>
-  <rect x="45" y="71" width="12" height="20" rx="5" fill="#1a1a1a"/>
+  <rect x="1"  y="86" width="12" height="24" rx="5" fill="#1a1a1a"/>
+  <rect x="45" y="86" width="12" height="24" rx="5" fill="#1a1a1a"/>
   <!-- 휠 림 -->
-  <circle cx="7"  cy="23" r="4.5" fill="#888"/><circle cx="7"  cy="23" r="2" fill="#bbb"/>
-  <circle cx="51" cy="23" r="4.5" fill="#888"/><circle cx="51" cy="23" r="2" fill="#bbb"/>
-  <circle cx="7"  cy="81" r="4.5" fill="#888"/><circle cx="7"  cy="81" r="2" fill="#bbb"/>
-  <circle cx="51" cy="81" r="4.5" fill="#888"/><circle cx="51" cy="81" r="2" fill="#bbb"/>
+  <circle cx="7"  cy="28" r="4.5" fill="#888"/><circle cx="7"  cy="28" r="2" fill="#bbb"/>
+  <circle cx="51" cy="28" r="4.5" fill="#888"/><circle cx="51" cy="28" r="2" fill="#bbb"/>
+  <circle cx="7"  cy="98" r="4.5" fill="#888"/><circle cx="7"  cy="98" r="2" fill="#bbb"/>
+  <circle cx="51" cy="98" r="4.5" fill="#888"/><circle cx="51" cy="98" r="2" fill="#bbb"/>
   <!-- 차체 -->
-  <rect x="5" y="8" width="48" height="88" rx="10" fill="url(#body)" filter="url(#sh)"/>
+  <rect x="5" y="10" width="48" height="106" rx="10" fill="url(#body)" filter="url(#sh)"/>
   <!-- 트렁크(뒤=위) -->
-  <rect x="7" y="10" width="44" height="16" rx="7" fill="rgba(0,0,0,0.1)"/>
+  <rect x="7" y="12" width="44" height="20" rx="7" fill="rgba(0,0,0,0.1)"/>
   <!-- 후드(앞=아래) -->
-  <rect x="7" y="78" width="44" height="16" rx="7" fill="rgba(0,0,0,0.1)"/>
+  <rect x="7" y="94" width="44" height="20" rx="7" fill="rgba(0,0,0,0.1)"/>
   <!-- 뒷유리 -->
-  <rect x="12" y="16" width="34" height="13" rx="4" fill="#7ec8e3" opacity="0.65"/>
+  <rect x="12" y="19" width="34" height="16" rx="4" fill="#7ec8e3" opacity="0.65"/>
   <!-- 앞유리 -->
-  <rect x="12" y="75" width="34" height="13" rx="4" fill="#7ec8e3" opacity="0.85"/>
+  <rect x="12" y="91" width="34" height="16" rx="4" fill="#7ec8e3" opacity="0.85"/>
   <!-- 루프 -->
-  <rect x="11" y="29" width="36" height="46" rx="6" fill="url(#roof)"/>
-  <rect x="11" y="29" width="36" height="46" rx="6" fill="none" stroke="rgba(0,0,0,0.1)" stroke-width="2"/>
+  <rect x="11" y="35" width="36" height="56" rx="6" fill="url(#roof)"/>
+  <rect x="11" y="35" width="36" height="56" rx="6" fill="none" stroke="rgba(0,0,0,0.1)" stroke-width="2"/>
   <!-- 도어라인 -->
-  <line x1="7" y1="52" x2="51" y2="52" stroke="rgba(0,0,0,0.12)" stroke-width="1.5"/>
+  <line x1="7" y1="63" x2="51" y2="63" stroke="rgba(0,0,0,0.12)" stroke-width="1.5"/>
   <!-- 테일라이트 -->
-  <rect x="8"  y="10" width="11" height="7" rx="2.5" fill="#ff2222" opacity="0.9"/>
-  <rect x="39" y="10" width="11" height="7" rx="2.5" fill="#ff2222" opacity="0.9"/>
+  <rect x="8"  y="12" width="11" height="8" rx="2.5" fill="#ff2222" opacity="0.9"/>
+  <rect x="39" y="12" width="11" height="8" rx="2.5" fill="#ff2222" opacity="0.9"/>
   <!-- 헤드라이트 -->
-  <rect x="8"  y="87" width="11" height="7" rx="2.5" fill="#fffde0" opacity="0.95"/>
-  <rect x="39" y="87" width="11" height="7" rx="2.5" fill="#fffde0" opacity="0.95"/>
-  <rect x="9"  y="88" width="5" height="3" rx="1" fill="white" opacity="0.9"/>
-  <rect x="40" y="88" width="5" height="3" rx="1" fill="white" opacity="0.9"/>
+  <rect x="8"  y="106" width="11" height="8" rx="2.5" fill="#fffde0" opacity="0.95"/>
+  <rect x="39" y="106" width="11" height="8" rx="2.5" fill="#fffde0" opacity="0.95"/>
+  <rect x="9"  y="107" width="5"  height="3" rx="1"   fill="white"  opacity="0.9"/>
+  <rect x="40" y="107" width="5"  height="3" rx="1"   fill="white"  opacity="0.9"/>
 </svg>`;
 
-const CAR_COLORS = [0xE53935,0x1E88E5,0x43A047,0xF9A825,0x8E24AA,0xF4511E,0xEC407A,0x00ACC1];
+const CAR_COLORS = [0xE53935,0x1E88E5,0x43A047,0xF9A825,0x8E24AA,0xF4511E,0xEC407A,0x00ACC1,0x00897B,0x6D4C41];
 
-// 글자 = 뱀처럼 이어지는 경로 [row, col]
-// 경로 순서대로 차가 "꼬리를 물고" 이어짐
 const CHARS = {
   'ㄱ': { path:[[0,0],[0,1],[0,2],[1,2],[2,2]], rows:3, cols:3 },
   'ㄴ': { path:[[0,0],[1,0],[1,1],[1,2]],        rows:2, cols:3 },
   'ㄷ': { path:[[0,2],[0,1],[0,0],[1,0],[2,0],[2,1],[2,2]], rows:3, cols:3 },
-  'ㅇ': { type:'circle', count:8, rows:3, cols:3 },
   'ㅁ': { path:[[0,0],[0,1],[0,2],[1,2],[2,2],[2,1],[2,0],[1,0]], rows:3, cols:3 },
+  'ㅇ': { type:'circle', count:10 },
 };
-const CHAR_LIST = ['ㄱ','ㄴ','ㄷ','ㅇ','ㅁ'];
+const CHAR_LIST = ['ㄱ','ㄴ','ㄷ','ㅁ','ㅇ'];
 
-// 경로에서 i번째 셀의 차 방향 계산 (Phaser angle: 0=위, 90=오른쪽, 180=아래, 270=왼쪽)
+// Phaser angle: 0=위 기준, 시계방향 (deg)
 function cellAngle(path, i) {
   let dR, dC;
   if (i < path.length - 1) {
@@ -148,17 +148,17 @@ class MenuScene extends Phaser.Scene {
       fontSize:'22px',fontFamily:'"Malgun Gothic",sans-serif',color:'#FFF9C4',
     }).setOrigin(0.5);
 
-    CHAR_LIST.forEach((ch,i) => {
-      const cols=CHAR_LIST.length;
-      const cardW=140, spacing=(W-80)/(cols);
-      const x=40+spacing/2+i*spacing, y=340;
-      const bg=this.add.rectangle(x,y,cardW,160,0xFFFFFF,0.93)
+    const n = CHAR_LIST.length;
+    const cardW = 138, spacing = (W - 60) / n;
+    CHAR_LIST.forEach((ch, i) => {
+      const x = 30 + spacing/2 + i*spacing, y = 345;
+      const bg = this.add.rectangle(x,y,cardW,165,0xFFFFFF,0.93)
         .setStrokeStyle(5,0x1565C0).setInteractive({useHandCursor:true});
-      this.add.text(x,y-15,ch,{
-        fontSize:'74px',fontFamily:'"Malgun Gothic",sans-serif',color:'#1A237E',
+      this.add.text(x,y-14,ch,{
+        fontSize:'80px',fontFamily:'"Malgun Gothic",sans-serif',color:'#1A237E',
       }).setOrigin(0.5);
-      const cnt=CHARS[ch].type==='circle'?CHARS[ch].count:CHARS[ch].path.length;
-      this.add.text(x,y+62,`자동차 ${cnt}대`,{
+      const cnt = CHARS[ch].type==='circle' ? CHARS[ch].count : CHARS[ch].path.length;
+      this.add.text(x,y+64,`자동차 ${cnt}대`,{
         fontSize:'14px',fontFamily:'"Malgun Gothic",sans-serif',color:'#555',
       }).setOrigin(0.5);
 
@@ -206,114 +206,114 @@ class GameScene extends Phaser.Scene {
   }
 
   _makeLot() {
-    const def=CHARS[this.ch];
-    if(def.type==='circle'){
-      this._makeCircleLot(def);
-    } else {
-      this._makePathLot(def);
-    }
+    const def = CHARS[this.ch];
+    if (def.type === 'circle') this._makeCircleLot(def);
+    else this._makePathLot(def);
   }
 
-  _makePathLot({path,rows,cols}) {
-    const pad=22;
-    const lotW=cols*(CS+GAP)-GAP+pad*2;
-    const lotH=rows*(CS+GAP)-GAP+pad*2;
-    const ox=48, oy=Math.round((H-lotH)/2)+14;
+  _makePathLot({path, rows, cols}) {
+    const pad = 18;
+    const lotW = cols*CS - GAP + pad*2;
+    const lotH = rows*CS - GAP + pad*2;
+    const ox = 44, oy = Math.round((H - lotH)/2) + 12;
 
-    const g=this.add.graphics();
+    const g = this.add.graphics();
     g.fillStyle(0x383838);
-    g.fillRoundedRect(ox-pad,oy-pad,lotW,lotH,14);
-    g.lineStyle(3,0x666);
-    g.strokeRoundedRect(ox-pad,oy-pad,lotW,lotH,14);
+    g.fillRoundedRect(ox-pad, oy-pad, lotW, lotH, 14);
+    g.lineStyle(3, 0x666);
+    g.strokeRoundedRect(ox-pad, oy-pad, lotW, lotH, 14);
 
     this.add.text(
-      ox+(cols*(CS+GAP)-GAP)/2, oy-pad-2,
-      this.ch+'  🔊',
+      ox + (cols*CS - GAP)/2, oy - pad - 2,
+      this.ch + '  🔊',
       {fontSize:'50px',fontFamily:'"Malgun Gothic",sans-serif',color:'#FFD700',stroke:'#000',strokeThickness:4}
     ).setOrigin(0.5,1).setInteractive({useHandCursor:true})
      .on('pointerdown',()=>speak(this.ch));
 
-    path.forEach(([row,col],idx) => {
-      const angle=cellAngle(path,idx);
-      const cx=ox+col*(CS+GAP)+CS/2;
-      const cy=oy+row*(CS+GAP)+CS/2;
-      const sg=this.add.graphics();
-      this._slotEmpty(sg,cx,cy,angle);
-
-      const arrows={0:'↑',90:'→',180:'↓',270:'←'};
-      const arrow=this.add.text(cx,cy,arrows[angle]||'→',{
-        fontSize:'26px',color:'#FFEB3B',alpha:0.55,
-      }).setOrigin(0.5).setDepth(2);
-
-      this.slots.push({x:cx,y:cy,angle,filled:false,car:null,color:0,sg,arrow});
+    path.forEach(([row, col], idx) => {
+      const angle = cellAngle(path, idx);
+      const cx = ox + col*CS + CS/2;
+      const cy = oy + row*CS + CS/2;
+      const sg = this.add.graphics();
+      this._slotEmpty(sg, cx, cy, angle);
+      const arrow = this.add.text(cx, cy, '↑', {fontSize:'24px',color:'#FFEB3B',alpha:0.5})
+        .setOrigin(0.5).setAngle(angle).setDepth(2);
+      this.slots.push({x:cx, y:cy, angle, filled:false, car:null, color:0, sg, arrow});
     });
-    this.totalSlots=path.length;
+    this.totalSlots = path.length;
   }
 
   _makeCircleLot({count}) {
-    const cx=330, cy=H/2+10;
-    const R=130;
-    const pad=R+CS+30;
+    // 반경: 차들이 꼬리를 물도록 원주 = count * 차 길이
+    const carLen = SVG_H * S_PARK;  // ≈ 98 px
+    const R = Math.round(count * carLen / (2 * Math.PI));
+    const cx = Math.round(W * 0.37), cy = Math.round(H / 2) + 8;
+    const outerR = R + CS * 0.58;
+    const innerR = R - CS * 0.58;
 
-    const g=this.add.graphics();
+    const g = this.add.graphics();
     g.fillStyle(0x383838);
-    g.fillCircle(cx,cy,pad);
-    g.lineStyle(3,0x666);
-    g.strokeCircle(cx,cy,pad);
-    // 가운데 구멍 (원형 글자 특성)
-    g.fillStyle(0x4a7a30);
-    g.fillCircle(cx,cy,R-CS*0.7);
+    g.fillCircle(cx, cy, outerR);
+    g.lineStyle(3, 0x666666);
+    g.strokeCircle(cx, cy, outerR);
+    if (innerR > 15) {
+      g.fillStyle(0x4a7a30);
+      g.fillCircle(cx, cy, innerR);
+    }
 
-    this.add.text(cx,cy-pad-2,this.ch+'  🔊',{
-      fontSize:'50px',fontFamily:'"Malgun Gothic",sans-serif',color:'#FFD700',stroke:'#000',strokeThickness:4
+    this.add.text(cx, cy - outerR - 2, this.ch + '  🔊', {
+      fontSize:'50px', fontFamily:'"Malgun Gothic",sans-serif',
+      color:'#FFD700', stroke:'#000', strokeThickness:4,
     }).setOrigin(0.5,1).setInteractive({useHandCursor:true})
      .on('pointerdown',()=>speak(this.ch));
 
-    for(let i=0;i<count;i++){
-      const rad=(-Math.PI/2)+(i/count)*Math.PI*2;
-      const sx=cx+R*Math.cos(rad);
-      const sy=cy+R*Math.sin(rad);
-      // 각도: 원의 접선 방향 (시계방향 주행)
-      const angle=Math.round((rad*(180/Math.PI)+90+360)%360);
-      // 45도 단위로 스냅
-      const snapped=Math.round(angle/45)*45%360;
-      const sg=this.add.graphics();
-      this._slotEmpty(sg,sx,sy,snapped);
+    for (let i = 0; i < count; i++) {
+      const θ  = -Math.PI/2 + (i   / count) * 2*Math.PI;
+      const θn = -Math.PI/2 + ((i+1) / count) * 2*Math.PI;
+      const sx = cx + R * Math.cos(θ);
+      const sy = cy + R * Math.sin(θ);
+      // 다음 슬롯 방향으로 차 머리가 향하도록 각도 계산
+      const dx = Math.cos(θn) - Math.cos(θ);
+      const dy = Math.sin(θn) - Math.sin(θ);
+      const angle = Math.round((Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360);
 
-      const arrows={0:'↑',45:'↗',90:'→',135:'↘',180:'↓',225:'↙',270:'←',315:'↖'};
-      const arrow=this.add.text(sx,sy,arrows[snapped]||'→',{
-        fontSize:'22px',color:'#FFEB3B',alpha:0.55,
-      }).setOrigin(0.5).setDepth(2);
-
-      this.slots.push({x:sx,y:sy,angle:snapped,filled:false,car:null,color:0,sg,arrow});
+      const sg = this.add.graphics();
+      this._slotEmpty(sg, sx, sy, angle);
+      const arrow = this.add.text(sx, sy, '↑', {fontSize:'22px',color:'#FFEB3B',alpha:0.5})
+        .setOrigin(0.5).setAngle(angle).setDepth(2);
+      this.slots.push({x:sx, y:sy, angle, filled:false, car:null, color:0, sg, arrow});
     }
-    this.totalSlots=count;
+    this.totalSlots = count;
   }
 
-  _slotEmpty(g,cx,cy,angle) {
+  _slotEmpty(g, cx, cy, angle) {
     g.clear();
+    // 주차 칸: 차 방향 기준으로 가로폭 좁고 세로 긴 직사각형처럼 그리기
+    const isHoriz = (angle === 90 || angle === 270);
+    const sw = isHoriz ? CS : CS * 0.52;  // slot width  (주행 방향과 수직)
+    const sh = isHoriz ? CS * 0.52 : CS;  // slot height (주행 방향과 평행)
     g.fillStyle(0x2a2a2a);
-    g.fillRect(cx-CS/2,cy-CS/2,CS,CS);
-    g.lineStyle(3.5,0xFFEB3B,0.85);
-    g.strokeRect(cx-CS/2,cy-CS/2,CS,CS);
-    // 중심선 (방향 표시)
-    g.lineStyle(1.5,0xFFEB3B,0.25);
+    g.fillRect(cx - sw/2, cy - sh/2, sw, sh);
+    g.lineStyle(3, 0xFFEB3B, 0.85);
+    g.strokeRect(cx - sw/2, cy - sh/2, sw, sh);
+    // 중심 방향선
+    g.lineStyle(1.5, 0xFFEB3B, 0.22);
     g.beginPath();
-    if(angle===90||angle===270){g.moveTo(cx-CS/2+5,cy);g.lineTo(cx+CS/2-5,cy);}
-    else{g.moveTo(cx,cy-CS/2+5);g.lineTo(cx,cy+CS/2-5);}
+    g.moveTo(cx, cy - sh/2 + 6);
+    g.lineTo(cx, cy + sh/2 - 6);
     g.strokePath();
   }
 
-  _slotFilled(g,cx,cy) {
+  _slotFilled(g, cx, cy) {
     g.clear();
     g.fillStyle(0x1B5E20);
-    g.fillRect(cx-CS/2,cy-CS/2,CS,CS);
-    g.lineStyle(3.5,0x66BB6A,0.9);
-    g.strokeRect(cx-CS/2,cy-CS/2,CS,CS);
+    g.fillRoundedRect(cx - CS*0.48, cy - CS*0.48, CS*0.96, CS*0.96, 6);
+    g.lineStyle(3, 0x66BB6A, 0.9);
+    g.strokeRoundedRect(cx - CS*0.48, cy - CS*0.48, CS*0.96, CS*0.96, 6);
   }
 
   _makeToyBox() {
-    this.bx=W-178; this.by=60; this.bw=152; this.bh=H-104;
+    this.bx=W-172; this.by=58; this.bw=148; this.bh=H-102;
     const g=this.add.graphics();
     g.fillStyle(0,0.18); g.fillRoundedRect(this.bx+4,this.by+4,this.bw,this.bh,14);
     g.fillStyle(0x795548); g.fillRoundedRect(this.bx,this.by,this.bw,this.bh,14);
@@ -324,7 +324,7 @@ class GameScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     this.boxCars=[];
-    const count=6, sp=(this.bh-54)/count;
+    const count=7, sp=(this.bh-54)/count;
     for(let i=0;i<count;i++){
       const cx=this.bx+this.bw/2, cy=this.by+44+i*sp+sp/2;
       const color=this.toyColors[i%this.toyColors.length];
@@ -354,17 +354,14 @@ class GameScene extends Phaser.Scene {
   _input() {
     this.input.on('pointerdown',(p)=>{
       if(this.won) return;
-      // 장난감 통
       if(p.x>=this.bx&&p.x<=this.bx+this.bw&&p.y>=this.by&&p.y<=this.by+this.bh){
         let best=this.boxCars[0],bestD=Infinity;
         for(const bc of this.boxCars){
           const d=Phaser.Math.Distance.Between(p.x,p.y,bc.x,bc.y);
           if(d<bestD){bestD=d;best=bc;}
         }
-        this._grab(p,best.color);
-        return;
+        this._grab(p,best.color); return;
       }
-      // 주차된 차 다시 집기
       for(const s of this.slots){
         if(!s.filled) continue;
         if(Math.abs(p.x-s.x)<CS/2+6&&Math.abs(p.y-s.y)<CS/2+6){
@@ -372,13 +369,49 @@ class GameScene extends Phaser.Scene {
         }
       }
     });
-    this.input.on('pointermove',(p)=>{if(this.dragCar)this.dragCar.setPosition(p.x,p.y);});
-    this.input.on('pointerup',(p)=>{if(this.dragCar)this._drop(p);});
+
+    // 드래그 중 주차 칸 근처에 오면 자동 주차
+    const snapDist = SVG_H * S_PARK * 0.52; // ~51 px
+    this.input.on('pointermove',(p)=>{
+      if(!this.dragCar) return;
+      this.dragCar.setPosition(p.x,p.y);
+      let best=null,bestD=snapDist;
+      for(const s of this.slots){
+        if(s.filled) continue;
+        const d=Phaser.Math.Distance.Between(p.x,p.y,s.x,s.y);
+        if(d<bestD){bestD=d;best=s;}
+      }
+      if(best) this._park(best);
+    });
+
+    this.input.on('pointerup',(p)=>{
+      if(!this.dragCar) return;
+      // 손을 뗄 때도 가까운 슬롯 있으면 주차
+      let best=null,bestD=72;
+      for(const s of this.slots){
+        if(s.filled) continue;
+        const d=Phaser.Math.Distance.Between(p.x,p.y,s.x,s.y);
+        if(d<bestD){bestD=d;best=s;}
+      }
+      if(best) this._park(best);
+      // 슬롯 없으면 dragCar 유지 → 계속 드래그
+    });
   }
 
   _grab(p,color) {
     this.dragColor=color;
     this.dragCar=this.add.image(p.x,p.y,'car').setTint(color).setScale(S_DRAG).setAngle(90).setDepth(15);
+  }
+
+  _park(slot) {
+    const car=this.dragCar; this.dragCar=null;
+    car.setPosition(slot.x,slot.y).setScale(S_PARK).setAngle(slot.angle).setDepth(3);
+    slot.filled=true; slot.car=car; slot.color=this.dragColor;
+    this._slotFilled(slot.sg,slot.x,slot.y);
+    slot.arrow.setVisible(false);
+    this.filled++; this._updateProg();
+    this.tweens.add({targets:car,scaleX:S_PARK*1.12,scaleY:S_PARK*1.12,yoyo:true,duration:85,onComplete:()=>car.setScale(S_PARK)});
+    if(this.filled===this.totalSlots) this.time.delayedCall(350,()=>this._win());
   }
 
   _unpark(slot,p) {
@@ -389,29 +422,6 @@ class GameScene extends Phaser.Scene {
     slot.arrow.setVisible(true);
     this._updateProg();
     this._grab(p,this.dragColor);
-  }
-
-  _drop(p) {
-    const car=this.dragCar; this.dragCar=null;
-    let best=null,bestD=72;
-    for(const s of this.slots){
-      if(s.filled) continue;
-      const d=Phaser.Math.Distance.Between(p.x,p.y,s.x,s.y);
-      if(d<bestD){bestD=d;best=s;}
-    }
-    if(best){
-      car.setPosition(best.x,best.y).setScale(S_PARK).setAngle(best.angle).setDepth(3);
-      best.filled=true; best.car=car; best.color=this.dragColor;
-      this._slotFilled(best.sg,best.x,best.y);
-      best.arrow.setVisible(false);
-      this.filled++; this._updateProg();
-      // 주차 bounce
-      this.tweens.add({targets:car,scaleX:S_PARK*1.12,scaleY:S_PARK*1.12,yoyo:true,duration:85,onComplete:()=>car.setScale(S_PARK)});
-      if(this.filled===this.totalSlots) this.time.delayedCall(350,()=>this._win());
-    } else {
-      // 슬롯 근처가 아니면 계속 드래그 유지
-      this.dragCar = car;
-    }
   }
 
   _updateProg(){this.progText.setText(`${this.filled} / ${this.totalSlots}`);}
