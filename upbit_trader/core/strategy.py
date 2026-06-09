@@ -47,7 +47,7 @@ def get_signal(
         "ma5": round(float(curr5), 0),
         "ma20": round(float(curr20), 0),
         "rsi": round(float(curr_rsi), 2),
-        "golden_cross": golden,
-        "dead_cross": dead,
+        "golden_cross": bool(golden),
+        "dead_cross": bool(dead),
     }
     return signal, indicators
