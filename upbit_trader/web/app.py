@@ -1,0 +1,106 @@
+from __future__ import annotations
+
+import json
+import os
+import sys
+from contextlib import asynccontextmanager
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+
+import config
+from core import bot
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+_clients: set[WebSocket] = set()
+
+
+async def _broadcast():
+    data = json.dumps(bot.state.to_dict())
+    dead = set()
+    for ws in _clients:
+        try:
+            await ws.send_text(data)
+        except Exception:
+            dead.add(ws)
+    _clients.difference_update(dead)
+
+
+@asynccontextmanager
+async def _lifespan(app):
+    yield
+    bot.stop_bot()
+
+
+app = FastAPI(title=config.APP_NAME, version=config.APP_VERSION, lifespan=_lifespan)
+app.mount("/static", StaticFiles(directory=os.path.join(HERE, "static")), name="static")
+
+
+@app.get("/", response_class=HTMLResponse)
+def index():
+    with open(os.path.join(HERE, "templates", "index.html"), encoding="utf-8") as f:
+        html = f.read()
+    return HTMLResponse(html.replace("{{APP_NAME}}", config.APP_NAME).replace("{{APP_VERSION}}", config.APP_VERSION))
+
+
+@app.get("/api/state")
+def get_state():
+    return bot.state.to_dict()
+
+
+class ConnectBody(BaseModel):
+    access_key: str
+    secret_key: str
+
+
+@app.post("/api/connect")
+def connect(body: ConnectBody):
+    if not body.access_key.strip() or not body.secret_key.strip():
+        raise HTTPException(400, "API 키를 입력해 주세요.")
+    bot.state.set_keys(body.access_key.strip(), body.secret_key.strip())
+    return {"ok": True}
+
+
+class StartBody(BaseModel):
+    ticker: str = config.DEFAULT_TICKER
+    trade_amount: float = config.DEFAULT_TRADE_AMOUNT
+
+
+@app.post("/api/start")
+async def start(body: StartBody):
+    if not bot.state.connected:
+        raise HTTPException(400, "먼저 API 키를 연결해 주세요.")
+    if body.trade_amount < 5000:
+        raise HTTPException(400, "최소 거래금액은 5,000원입니다.")
+    bot.state.ticker = body.ticker
+    bot.state.trade_amount = body.trade_amount
+    bot.start_bot(_broadcast)
+    await _broadcast()
+    return {"ok": True}
+
+
+@app.post("/api/stop")
+async def stop():
+    bot.stop_bot()
+    await _broadcast()
+    return {"ok": True}
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket):
+    await ws.accept()
+    _clients.add(ws)
+    try:
+        await ws.send_text(json.dumps(bot.state.to_dict()))
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        _clients.discard(ws)

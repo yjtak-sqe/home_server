@@ -173,6 +173,18 @@ services:
       - PASSWORD=                            # 비밀번호 직접 설정 필요 (아래 참고)
       - SUDO_PASSWORD=                       # sudo 비밀번호 (선택)
 
+  # ──────────────────────────────────────────
+  # Upbit 자동매매 — 골든크로스 + RSI 전략
+  # 접속: http://서버IP:8091
+  # ──────────────────────────────────────────
+  upbit-trader:
+    build: ./upbit_trader
+    image: upbit-trader:latest
+    container_name: upbit-trader
+    restart: unless-stopped
+    ports:
+      - "8091:8000"
+
 volumes:
   homarr_config:
   homarr_icons:
