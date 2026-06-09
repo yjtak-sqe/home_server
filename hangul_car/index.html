@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>자동차 주차 한글 게임</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #1a237e; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
+</style>
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+<script>
+const W = 900, H = 580;
+const CELL_W = 80, CELL_H = 108, GAP = 8;
+const CAR_W = 52, CAR_H = 82;
+
+const CAR_COLORS = [0xe53935, 0x1E88E5, 0x43A047, 0xFDD835, 0x8E24AA, 0xF4511E, 0xEC407A, 0x00ACC1];
+
+const CHARS = {
+  'ㄱ': { cells: [[0,0],[0,1],[0,2],[1,2]], cols: 3, rows: 2 },
+  'ㄴ': { cells: [[0,0],[1,0],[1,1],[1,2]], cols: 3, rows: 2 },
+  'ㄷ': { cells: [[0,0],[0,1],[0,2],[1,0],[2,0],[2,1],[2,2]], cols: 3, rows: 3 },
+};
+const CHAR_LIST = ['ㄱ', 'ㄴ', 'ㄷ'];
+
+// ── 유틸 ─────────────────────────────────────────────────────────────────
+function drawCloud(scene, x, y, alpha) {
+  const g = scene.add.graphics().fillStyle(0xffffff, alpha || 0.85);
+  [[0,0,26],[25,-8,30],[52,0,24],[25,14,22]].forEach(([dx,dy,r]) => g.fillCircle(x+dx,y+dy,r));
+  return g;
+}
+
+function drawCar(scene, x, y, color, scale) {
+  const cw = CAR_W, ch = CAR_H;
+  const g = scene.add.graphics();
+
+  // 차체
+  g.fillStyle(color);
+  g.fillRoundedRect(-cw/2, -ch/2+16, cw, ch-20, 8);
+
+  // 지붕 (밝게)
+  const rgb = Phaser.Display.Color.IntegerToColor(color);
+  rgb.lighten(28);
+  g.fillStyle(rgb.color);
+  g.fillRoundedRect(-cw/2+6, -ch/2, cw-12, 40, 7);
+
+  // 앞유리
+  g.fillStyle(0xB3E5FC, 0.92);
+  g.fillRoundedRect(-cw/2+9, -ch/2+3, cw-18, 17, 4);
+
+  // 뒷유리
+  g.fillStyle(0xB3E5FC, 0.92);
+  g.fillRoundedRect(-cw/2+9, -ch/2+23, cw-18, 13, 3);
+
+  // 바퀴
+  g.fillStyle(0x212121);
+  [[-cw/2-4,-ch/2+20],[cw/2-8,-ch/2+20],[-cw/2-4,ch/2-21],[cw/2-8,ch/2-21]]
+    .forEach(([wx,wy]) => g.fillRoundedRect(wx, wy, 12, 16, 4));
+
+  // 휠캡
+  g.fillStyle(0xBDBDBD);
+  [[-cw/2-4,-ch/2+20],[cw/2-8,-ch/2+20],[-cw/2-4,ch/2-21],[cw/2-8,ch/2-21]]
+    .forEach(([wx,wy]) => g.fillCircle(wx+6, wy+8, 3.5));
+
+  // 헤드라이트
+  g.fillStyle(0xFFF176);
+  g.fillRoundedRect(-cw/2+4, ch/2-12, 10, 6, 2);
+  g.fillRoundedRect(cw/2-14, ch/2-12, 10, 6, 2);
+
+  // 테일라이트
+  g.fillStyle(0xEF9A9A);
+  g.fillRoundedRect(-cw/2+4, -ch/2+17, 8, 5, 2);
+  g.fillRoundedRect(cw/2-12, -ch/2+17, 8, 5, 2);
+
+  g.setPosition(x, y).setScale(scale);
+  return g;
+}
+
+function speak(text) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ko-KR'; u.rate = 0.75; u.pitch = 1.3;
+  window.speechSynthesis.speak(u);
+}
+
+// ── MenuScene ─────────────────────────────────────────────────────────────
+class MenuScene extends Phaser.Scene {
+  constructor() { super('Menu'); }
+
+  create() {
+    // 배경
+    const g = this.add.graphics();
+    g.fillGradientStyle(0x64B5F6, 0x64B5F6, 0x90CAF9, 0x90CAF9);
+    g.fillRect(0, 0, W, H * 0.68);
+    g.fillStyle(0x66BB6A); g.fillRect(0, H*0.68, W, H*0.32);
+    g.fillStyle(0x546E7A); g.fillRect(0, H*0.68, W, 16);
+
+    [[80,55],[320,38],[600,58],[800,42]].forEach(([x,y]) => drawCloud(this,x,y));
+    this.add.circle(840, 55, 36, 0xFFD54F);
+    this.add.circle(840, 55, 26, 0xFFE082);
+
+    // 제목
+    this.add.text(W/2, 88, '🚗 자동차 주차 한글 🅿', {
+      fontSize: '40px', fontFamily: '"Malgun Gothic",sans-serif',
+      color: '#fff', stroke: '#1a237e', strokeThickness: 5,
+    }).setOrigin(0.5);
+
+    this.add.text(W/2, 150, '배울 글자를 골라보세요!', {
+      fontSize: '22px', fontFamily: '"Malgun Gothic",sans-serif', color: '#FFF9C4',
+    }).setOrigin(0.5);
+
+    // 글자 버튼
+    CHAR_LIST.forEach((ch, i) => {
+      const x = W/2 + (i-1) * 220, y = 340;
+      const bg = this.add.rectangle(x, y, 175, 175, 0xFFFFFF, 0.93)
+        .setStrokeStyle(5, 0x1565C0).setInteractive({ useHandCursor: true });
+
+      this.add.text(x, y-12, ch, {
+        fontSize: '90px', fontFamily: '"Malgun Gothic",sans-serif', color: '#1A237E',
+      }).setOrigin(0.5);
+
+      this.add.text(x, y+70, `주차 ${CHARS[ch].cells.length}칸`, {
+        fontSize: '17px', fontFamily: '"Malgun Gothic",sans-serif', color: '#555',
+      }).setOrigin(0.5);
+
+      bg.on('pointerover', () => bg.setFillStyle(0xE3F2FD, 0.95));
+      bg.on('pointerout',  () => bg.setFillStyle(0xFFFFFF, 0.93));
+      bg.on('pointerdown', () => {
+        this.tweens.add({ targets: bg, scaleX: 0.95, scaleY: 0.95, yoyo: true, duration: 100 });
+        this.cameras.main.fadeOut(220);
+        this.time.delayedCall(220, () => this.scene.start('Game', { ch }));
+      });
+    });
+
+    this.cameras.main.fadeIn(300);
+  }
+}
+
+// ── GameScene ─────────────────────────────────────────────────────────────
+class GameScene extends Phaser.Scene {
+  constructor() { super('Game'); }
+
+  init({ ch }) {
+    this.ch = ch;
+    this.slots = [];
+    this.filled = 0;
+    this.dragCar = null;
+    this.dragColor = 0;
+    this.won = false;
+    this.toyColors = Phaser.Utils.Array.Shuffle([...CAR_COLORS]);
+    this.colorIdx = 0;
+  }
+
+  create() {
+    this._bg();
+    this._makeLot();
+    this._makeToyBox();
+    this._makeUI();
+    this._input();
+    this.cameras.main.fadeIn(300);
+  }
+
+  _bg() {
+    const g = this.add.graphics();
+    g.fillGradientStyle(0x64B5F6, 0x64B5F6, 0x90CAF9, 0x90CAF9);
+    g.fillRect(0, 0, W, H*0.63);
+    g.fillStyle(0x558B2F); g.fillRect(0, H*0.63, W, H*0.37);
+    g.fillStyle(0x455A64); g.fillRect(0, H*0.63, W, 15);
+    [[50,42],[270,55],[530,38],[750,58]].forEach(([x,y]) => drawCloud(this,x,y));
+    this.add.circle(845, 52, 34, 0xFFD54F);
+    this.add.circle(845, 52, 22, 0xFFE082);
+  }
+
+  _makeLot() {
+    const { cells, cols, rows } = CHARS[this.ch];
+    const lotW = cols*(CELL_W+GAP)-GAP+44;
+    const lotH = rows*(CELL_H+GAP)-GAP+44;
+    const lotX = 52;
+    const lotY = Math.round((H - lotH) / 2) + 14;
+
+    // 아스팔트
+    const g = this.add.graphics();
+    g.fillStyle(0x424242);
+    g.fillRoundedRect(lotX-22, lotY-22, lotW, lotH, 14);
+    g.lineStyle(3, 0x757575);
+    g.strokeRoundedRect(lotX-22, lotY-22, lotW, lotH, 14);
+
+    // 글자 라벨 (클릭하면 읽어줌)
+    const label = this.add.text(
+      lotX + (cols*(CELL_W+GAP)-GAP)/2,
+      lotY - 30,
+      this.ch + ' 🔊',
+      { fontSize: '48px', fontFamily: '"Malgun Gothic",sans-serif', color: '#FFD700', stroke: '#000', strokeThickness: 4 }
+    ).setOrigin(0.5, 1).setInteractive({ useHandCursor: true });
+    label.on('pointerdown', () => speak(this.ch));
+
+    // 슬롯
+    cells.forEach(([row, col]) => {
+      const sx = lotX + col*(CELL_W+GAP);
+      const sy = lotY + row*(CELL_H+GAP);
+      const sg = this.add.graphics();
+      sg.fillStyle(0x333333); sg.fillRect(sx, sy, CELL_W, CELL_H);
+      sg.lineStyle(3.5, 0xFFEB3B); sg.strokeRect(sx, sy, CELL_W, CELL_H);
+
+      this.slots.push({
+        x: sx + CELL_W/2, y: sy + CELL_H/2,
+        filled: false, car: null, color: 0, slotG: sg,
+      });
+    });
+
+    this.totalSlots = cells.length;
+  }
+
+  _makeToyBox() {
+    this.bx = W-175; this.by = 62; this.bw = 150; this.bh = H-105;
+
+    const g = this.add.graphics();
+    g.fillStyle(0x6D4C41);
+    g.fillRoundedRect(this.bx, this.by, this.bw, this.bh, 14);
+    g.fillStyle(0x8D6E63);
+    g.fillRoundedRect(this.bx+5, this.by+5, this.bw-10, this.bh-10, 11);
+    g.lineStyle(3, 0x4E342E);
+    g.strokeRoundedRect(this.bx, this.by, this.bw, this.bh, 14);
+
+    this.add.text(this.bx+this.bw/2, this.by+16, '🧺 장난감 통', {
+      fontSize: '14px', fontFamily: '"Malgun Gothic",sans-serif', color: '#FFF8E1',
+    }).setOrigin(0.5);
+
+    // 자동차 6대 미리보기
+    this.toyCarsGfx = [];
+    const count = 6;
+    const sp = (this.bh-50)/count;
+    for (let i = 0; i < count; i++) {
+      const cx = this.bx + this.bw/2;
+      const cy = this.by + 42 + i*sp + sp/2;
+      const color = this.toyColors[i % this.toyColors.length];
+      const cg = drawCar(this, cx, cy, color, 0.50);
+      this.toyCarsGfx.push({ x: cx, y: cy, color, gfx: cg });
+    }
+  }
+
+  _makeUI() {
+    this.progText = this.add.text(W/2-55, 14, `0 / ${this.totalSlots}`, {
+      fontSize: '24px', fontFamily: '"Malgun Gothic",sans-serif',
+      color: '#FFD700', stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5);
+
+    this.add.text(W/2-55, 44, '자동차를 주차칸에 올려봐요! 🚗', {
+      fontSize: '14px', fontFamily: '"Malgun Gothic",sans-serif', color: '#E0F7FA',
+    }).setOrigin(0.5);
+
+    const back = this.add.text(16, 14, '◀ 메뉴', {
+      fontSize: '17px', fontFamily: '"Malgun Gothic",sans-serif',
+      color: '#fff', backgroundColor: '#00000066', padding: { x:8, y:4 },
+    }).setInteractive({ useHandCursor: true });
+    back.on('pointerdown', () => {
+      this.cameras.main.fadeOut(200);
+      this.time.delayedCall(200, () => this.scene.start('Menu'));
+    });
+  }
+
+  _input() {
+    this.input.on('pointerdown', (p) => {
+      if (this.won) return;
+
+      // 장난감 통 영역 클릭 → 가장 가까운 색 차 집기
+      if (p.x >= this.bx && p.x <= this.bx+this.bw && p.y >= this.by && p.y <= this.by+this.bh) {
+        let best = this.toyCarsGfx[0], bestD = Infinity;
+        for (const tc of this.toyCarsGfx) {
+          const d = Phaser.Math.Distance.Between(p.x, p.y, tc.x, tc.y);
+          if (d < bestD) { bestD = d; best = tc; }
+        }
+        this._grabNew(p, best.color);
+        return;
+      }
+
+      // 주차된 차 클릭 → 다시 집기
+      for (const slot of this.slots) {
+        if (!slot.filled) continue;
+        if (Math.abs(p.x-slot.x) < CELL_W/2+4 && Math.abs(p.y-slot.y) < CELL_H/2+4) {
+          this._unpark(slot, p);
+          return;
+        }
+      }
+    });
+
+    this.input.on('pointermove', (p) => {
+      if (this.dragCar) this.dragCar.setPosition(p.x, p.y);
+    });
+
+    this.input.on('pointerup', (p) => {
+      if (this.dragCar) this._drop(p);
+    });
+  }
+
+  _grabNew(p, color) {
+    this.dragColor = color;
+    this.dragCar = drawCar(this, p.x, p.y, color, 0.92);
+    this.dragCar.setDepth(10);
+  }
+
+  _unpark(slot, p) {
+    slot.car.destroy(); slot.car = null;
+    this.dragColor = slot.color;
+    slot.filled = false; slot.color = 0;
+    this.filled--;
+    this._slotGfx(slot, false);
+    this._updateProg();
+    this.dragCar = drawCar(this, p.x, p.y, this.dragColor, 0.92);
+    this.dragCar.setDepth(10);
+  }
+
+  _drop(p) {
+    const car = this.dragCar;
+    this.dragCar = null;
+
+    // 가장 가까운 빈 슬롯 스냅
+    let best = null, bestD = 72;
+    for (const slot of this.slots) {
+      if (slot.filled) continue;
+      const d = Phaser.Math.Distance.Between(p.x, p.y, slot.x, slot.y);
+      if (d < bestD) { bestD = d; best = slot; }
+    }
+
+    if (best) {
+      car.destroy();
+      const parked = drawCar(this, best.x, best.y, this.dragColor, 0.70);
+      parked.setDepth(1);
+      best.filled = true; best.car = parked; best.color = this.dragColor;
+      this.filled++;
+      this._slotGfx(best, true);
+      this._updateProg();
+
+      // 탁! 소리 대신 bounce
+      this.tweens.add({ targets: parked, scaleX: 0.76, scaleY: 0.76, yoyo: true, duration: 90, onComplete: () => parked.setScale(0.70) });
+
+      if (this.filled === this.totalSlots) {
+        this.time.delayedCall(350, () => this._win());
+      }
+    } else {
+      // 장난감 통으로 복귀
+      this.tweens.add({
+        targets: car,
+        x: this.bx+this.bw/2, y: this.by+this.bh/2,
+        alpha: 0, duration: 200, ease: 'Power2',
+        onComplete: () => car.destroy(),
+      });
+    }
+  }
+
+  _slotGfx(slot, filled) {
+    slot.slotG.clear();
+    const lx = slot.x - CELL_W/2, ly = slot.y - CELL_H/2;
+    if (filled) {
+      slot.slotG.fillStyle(0x2E7D32); slot.slotG.fillRect(lx, ly, CELL_W, CELL_H);
+      slot.slotG.lineStyle(3.5, 0x81C784); slot.slotG.strokeRect(lx, ly, CELL_W, CELL_H);
+    } else {
+      slot.slotG.fillStyle(0x333333); slot.slotG.fillRect(lx, ly, CELL_W, CELL_H);
+      slot.slotG.lineStyle(3.5, 0xFFEB3B); slot.slotG.strokeRect(lx, ly, CELL_W, CELL_H);
+    }
+  }
+
+  _updateProg() {
+    this.progText.setText(`${this.filled} / ${this.totalSlots}`);
+  }
+
+  _win() {
+    this.won = true;
+
+    // 별/폭죽 이펙트
+    const emojis = ['⭐','🎉','✨','🌟','🎊','🚗'];
+    for (let i = 0; i < 40; i++) {
+      const t = this.add.text(
+        Phaser.Math.Between(60, W-60),
+        Phaser.Math.Between(60, H-60),
+        emojis[i % emojis.length],
+        { fontSize: `${Phaser.Math.Between(20, 36)}px` }
+      ).setAlpha(0).setDepth(20);
+      this.tweens.add({
+        targets: t, alpha: 1, y: t.y - Phaser.Math.Between(50, 90),
+        delay: i * 45, duration: 480, yoyo: true, ease: 'Power2',
+        onComplete: () => t.destroy(),
+      });
+    }
+
+    this.time.delayedCall(500, () => {
+      // 팝업
+      this.add.rectangle(W/2, H/2, W, H, 0x000, 0.55).setDepth(30);
+      this.add.rectangle(W/2, H/2, 430, 310, 0xFFFDE7).setDepth(31).setStrokeStyle(7, 0xFFD700);
+
+      this.add.text(W/2, H/2-108, '🎊 완성! 잘했어요! 🎊', {
+        fontSize: '30px', fontFamily: '"Malgun Gothic",sans-serif', color: '#333',
+      }).setOrigin(0.5).setDepth(32);
+
+      const ct = this.add.text(W/2, H/2-22, this.ch, {
+        fontSize: '96px', fontFamily: '"Malgun Gothic",sans-serif', color: '#D32F2F',
+      }).setOrigin(0.5).setDepth(32);
+      this.tweens.add({ targets: ct, scaleX: 1.18, scaleY: 1.18, yoyo: true, duration: 280, repeat: 2 });
+
+      this.add.text(W/2, H/2+62, '👏 브라보! 👏', {
+        fontSize: '26px', fontFamily: '"Malgun Gothic",sans-serif', color: '#1565C0',
+      }).setOrigin(0.5).setDepth(32);
+
+      // TTS 읽어주기
+      speak(this.ch);
+
+      // 다시 읽기 버튼
+      this._btn(W/2, H/2+105, '🔊 다시 읽기', 0x00838F, () => speak(this.ch));
+
+      // 다시하기 / 다음
+      this._btn(W/2-98, H/2+148, '🔄 다시 하기', 0x388E3C, () => {
+        this.cameras.main.fadeOut(200);
+        this.time.delayedCall(200, () => this.scene.restart({ ch: this.ch }));
+      });
+      this._btn(W/2+98, H/2+148, '다음 글자 ▶', 0x1565C0, () => {
+        const next = CHAR_LIST[(CHAR_LIST.indexOf(this.ch)+1) % CHAR_LIST.length];
+        this.cameras.main.fadeOut(200);
+        this.time.delayedCall(200, () => this.scene.start('Game', { ch: next }));
+      });
+    });
+  }
+
+  _btn(x, y, label, color, cb) {
+    const btn = this.add.rectangle(x, y, 170, 44, color).setDepth(32).setInteractive({ useHandCursor: true });
+    this.add.text(x, y, label, {
+      fontSize: '16px', fontFamily: '"Malgun Gothic",sans-serif', color: '#fff',
+    }).setOrigin(0.5).setDepth(33);
+    btn.on('pointerover', () => { const c = Phaser.Display.Color.IntegerToColor(color); c.lighten(15); btn.setFillStyle(c.color); });
+    btn.on('pointerout', () => btn.setFillStyle(color));
+    btn.on('pointerdown', cb);
+  }
+}
+
+// ── 실행 ─────────────────────────────────────────────────────────────────
+new Phaser.Game({
+  type: Phaser.AUTO,
+  width: W, height: H,
+  parent: document.body,
+  backgroundColor: '#87CEEB',
+  scene: [MenuScene, GameScene],
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+  },
+});
+</script>
+</body>
+</html>

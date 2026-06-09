@@ -177,6 +177,18 @@ services:
   # Upbit 자동매매 — 골든크로스 + RSI 전략
   # 접속: http://서버IP:8091
   # ──────────────────────────────────────────
+  # ──────────────────────────────────────────
+  # 한글 자동차 주차 게임 — 아이 교육용
+  # 접속: http://서버IP:8092
+  # ──────────────────────────────────────────
+  hangul-car:
+    build: ./hangul_car
+    image: hangul-car:latest
+    container_name: hangul-car
+    restart: unless-stopped
+    ports:
+      - "8092:80"
+
   upbit-trader:
     build: ./upbit_trader
     image: upbit-trader:latest
