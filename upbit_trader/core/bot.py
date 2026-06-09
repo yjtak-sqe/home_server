@@ -74,18 +74,18 @@ def _log_trade(t: str, price: float, amount: float, result):
 async def _refresh_balances():
     if not state._upbit:
         return
-    try:
-        coin = state.ticker.split("-")[1]
-        balances = state._upbit.get_balances()
-        for b in balances:
-            cur = b["currency"]
-            if cur == "KRW":
-                state.balance_krw = float(b["balance"])
-            elif cur == coin:
-                state.balance_coin = float(b["balance"])
-                state.avg_buy_price = float(b.get("avg_buy_price") or 0)
-    except Exception as e:
-        state.error = f"잔고 조회 실패: {e}"
+    coin = state.ticker.split("-")[1]
+    balances = state._upbit.get_balances()
+    if not isinstance(balances, list):
+        state.error = f"잔고 조회 실패: {balances}"
+        return
+    for b in balances:
+        cur = b["currency"]
+        if cur == "KRW":
+            state.balance_krw = float(b["balance"])
+        elif cur == coin:
+            state.balance_coin = float(b["balance"])
+            state.avg_buy_price = float(b.get("avg_buy_price") or 0)
 
 
 async def trading_loop(on_update: Callable):

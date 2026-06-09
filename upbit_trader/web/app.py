@@ -38,6 +38,7 @@ async def _lifespan(app):
     secret = os.environ.get("UPBIT_SECRET_KEY", "").strip()
     if access and secret:
         bot.state.set_keys(access, secret)
+        await bot._refresh_balances()
     yield
     bot.stop_bot()
 
