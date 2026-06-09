@@ -79,8 +79,10 @@ const CHARS = {
   'ㄱ': { path:[[0,0],[0,1],[0,2],[1,2],[2,2]], rows:3, cols:3 },
   'ㄴ': { path:[[0,0],[1,0],[1,1],[1,2]],        rows:2, cols:3 },
   'ㄷ': { path:[[0,2],[0,1],[0,0],[1,0],[2,0],[2,1],[2,2]], rows:3, cols:3 },
+  'ㅇ': { type:'circle', count:8, rows:3, cols:3 },
+  'ㅁ': { path:[[0,0],[0,1],[0,2],[1,2],[2,2],[2,1],[2,0],[1,0]], rows:3, cols:3 },
 };
-const CHAR_LIST = ['ㄱ','ㄴ','ㄷ'];
+const CHAR_LIST = ['ㄱ','ㄴ','ㄷ','ㅇ','ㅁ'];
 
 // 경로에서 i번째 셀의 차 방향 계산 (Phaser angle: 0=위, 90=오른쪽, 180=아래, 270=왼쪽)
 function cellAngle(path, i) {
@@ -147,14 +149,17 @@ class MenuScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     CHAR_LIST.forEach((ch,i) => {
-      const x=W/2+(i-1)*224, y=340;
-      const bg=this.add.rectangle(x,y,180,185,0xFFFFFF,0.93)
+      const cols=CHAR_LIST.length;
+      const cardW=140, spacing=(W-80)/(cols);
+      const x=40+spacing/2+i*spacing, y=340;
+      const bg=this.add.rectangle(x,y,cardW,160,0xFFFFFF,0.93)
         .setStrokeStyle(5,0x1565C0).setInteractive({useHandCursor:true});
       this.add.text(x,y-15,ch,{
-        fontSize:'90px',fontFamily:'"Malgun Gothic",sans-serif',color:'#1A237E',
+        fontSize:'74px',fontFamily:'"Malgun Gothic",sans-serif',color:'#1A237E',
       }).setOrigin(0.5);
-      this.add.text(x,y+72,`자동차 ${CHARS[ch].path.length}대`,{
-        fontSize:'16px',fontFamily:'"Malgun Gothic",sans-serif',color:'#555',
+      const cnt=CHARS[ch].type==='circle'?CHARS[ch].count:CHARS[ch].path.length;
+      this.add.text(x,y+62,`자동차 ${cnt}대`,{
+        fontSize:'14px',fontFamily:'"Malgun Gothic",sans-serif',color:'#555',
       }).setOrigin(0.5);
 
       bg.on('pointerover',()=>{bg.setFillStyle(0xE3F2FD,0.95);bg.setScale(1.04);});
@@ -201,20 +206,26 @@ class GameScene extends Phaser.Scene {
   }
 
   _makeLot() {
-    const {path,rows,cols}=CHARS[this.ch];
+    const def=CHARS[this.ch];
+    if(def.type==='circle'){
+      this._makeCircleLot(def);
+    } else {
+      this._makePathLot(def);
+    }
+  }
+
+  _makePathLot({path,rows,cols}) {
     const pad=22;
     const lotW=cols*(CS+GAP)-GAP+pad*2;
     const lotH=rows*(CS+GAP)-GAP+pad*2;
     const ox=48, oy=Math.round((H-lotH)/2)+14;
 
-    // 아스팔트
     const g=this.add.graphics();
     g.fillStyle(0x383838);
     g.fillRoundedRect(ox-pad,oy-pad,lotW,lotH,14);
     g.lineStyle(3,0x666);
     g.strokeRoundedRect(ox-pad,oy-pad,lotW,lotH,14);
 
-    // 글자 라벨 (클릭시 TTS)
     this.add.text(
       ox+(cols*(CS+GAP)-GAP)/2, oy-pad-2,
       this.ch+'  🔊',
@@ -222,7 +233,6 @@ class GameScene extends Phaser.Scene {
     ).setOrigin(0.5,1).setInteractive({useHandCursor:true})
      .on('pointerdown',()=>speak(this.ch));
 
-    // 슬롯 생성
     path.forEach(([row,col],idx) => {
       const angle=cellAngle(path,idx);
       const cx=ox+col*(CS+GAP)+CS/2;
@@ -230,7 +240,6 @@ class GameScene extends Phaser.Scene {
       const sg=this.add.graphics();
       this._slotEmpty(sg,cx,cy,angle);
 
-      // 방향 화살표 (빈 칸 표시)
       const arrows={0:'↑',90:'→',180:'↓',270:'←'};
       const arrow=this.add.text(cx,cy,arrows[angle]||'→',{
         fontSize:'26px',color:'#FFEB3B',alpha:0.55,
@@ -239,6 +248,46 @@ class GameScene extends Phaser.Scene {
       this.slots.push({x:cx,y:cy,angle,filled:false,car:null,color:0,sg,arrow});
     });
     this.totalSlots=path.length;
+  }
+
+  _makeCircleLot({count}) {
+    const cx=330, cy=H/2+10;
+    const R=130;
+    const pad=R+CS+30;
+
+    const g=this.add.graphics();
+    g.fillStyle(0x383838);
+    g.fillCircle(cx,cy,pad);
+    g.lineStyle(3,0x666);
+    g.strokeCircle(cx,cy,pad);
+    // 가운데 구멍 (원형 글자 특성)
+    g.fillStyle(0x4a7a30);
+    g.fillCircle(cx,cy,R-CS*0.7);
+
+    this.add.text(cx,cy-pad-2,this.ch+'  🔊',{
+      fontSize:'50px',fontFamily:'"Malgun Gothic",sans-serif',color:'#FFD700',stroke:'#000',strokeThickness:4
+    }).setOrigin(0.5,1).setInteractive({useHandCursor:true})
+     .on('pointerdown',()=>speak(this.ch));
+
+    for(let i=0;i<count;i++){
+      const rad=(-Math.PI/2)+(i/count)*Math.PI*2;
+      const sx=cx+R*Math.cos(rad);
+      const sy=cy+R*Math.sin(rad);
+      // 각도: 원의 접선 방향 (시계방향 주행)
+      const angle=Math.round((rad*(180/Math.PI)+90+360)%360);
+      // 45도 단위로 스냅
+      const snapped=Math.round(angle/45)*45%360;
+      const sg=this.add.graphics();
+      this._slotEmpty(sg,sx,sy,snapped);
+
+      const arrows={0:'↑',45:'↗',90:'→',135:'↘',180:'↓',225:'↙',270:'←',315:'↖'};
+      const arrow=this.add.text(sx,sy,arrows[snapped]||'→',{
+        fontSize:'22px',color:'#FFEB3B',alpha:0.55,
+      }).setOrigin(0.5).setDepth(2);
+
+      this.slots.push({x:sx,y:sy,angle:snapped,filled:false,car:null,color:0,sg,arrow});
+    }
+    this.totalSlots=count;
   }
 
   _slotEmpty(g,cx,cy,angle) {
@@ -360,7 +409,8 @@ class GameScene extends Phaser.Scene {
       this.tweens.add({targets:car,scaleX:S_PARK*1.12,scaleY:S_PARK*1.12,yoyo:true,duration:85,onComplete:()=>car.setScale(S_PARK)});
       if(this.filled===this.totalSlots) this.time.delayedCall(350,()=>this._win());
     } else {
-      this.tweens.add({targets:car,x:this.bx+this.bw/2,y:this.by+this.bh/2,alpha:0,duration:220,ease:'Power2',onComplete:()=>car.destroy()});
+      // 슬롯 근처가 아니면 계속 드래그 유지
+      this.dragCar = car;
     }
   }
 
