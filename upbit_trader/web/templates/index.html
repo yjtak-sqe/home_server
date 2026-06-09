@@ -40,6 +40,24 @@
       </label>
       <button class="btn-start" id="startBtn" onclick="toggleBot()">▶ 시작</button>
     </div>
+
+    <div class="strategy-row">
+      <div class="strategy-title">전략 설정</div>
+      <div class="strategy-checks">
+        <label class="chk-label">
+          <input type="checkbox" id="chkGolden" checked>
+          <span>골든크로스 <span class="chk-hint">(MA5↑MA20 매수 / 데드크로스 매도)</span></span>
+        </label>
+        <label class="chk-label">
+          <input type="checkbox" id="chkRsiBuy" checked>
+          <span>RSI 매수 &lt; <input type="number" id="rsiBuy" value="50" min="1" max="99" class="num-inline"> 이하일 때</span>
+        </label>
+        <label class="chk-label">
+          <input type="checkbox" id="chkRsiSell" checked>
+          <span>RSI 매도 &gt; <input type="number" id="rsiSell" value="70" min="1" max="99" class="num-inline"> 이상일 때</span>
+        </label>
+      </div>
+    </div>
   </div>
 
   <!-- 지표 카드 -->

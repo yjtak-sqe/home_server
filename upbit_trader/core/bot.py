@@ -15,6 +15,12 @@ class BotState:
         self.running = False
         self.ticker = config.DEFAULT_TICKER
         self.trade_amount = config.DEFAULT_TRADE_AMOUNT
+        # 전략 설정
+        self.use_golden_cross = True
+        self.use_rsi_buy = True
+        self.use_rsi_sell = True
+        self.rsi_buy_threshold = config.RSI_BUY
+        self.rsi_sell_threshold = config.RSI_SELL
         self.last_signal = "hold"
         self.indicators: dict = {}
         self.trades: list[dict] = []
@@ -44,6 +50,11 @@ class BotState:
             "connected": self.connected,
             "ticker": self.ticker,
             "trade_amount": self.trade_amount,
+            "use_golden_cross": self.use_golden_cross,
+            "use_rsi_buy": self.use_rsi_buy,
+            "use_rsi_sell": self.use_rsi_sell,
+            "rsi_buy_threshold": self.rsi_buy_threshold,
+            "rsi_sell_threshold": self.rsi_sell_threshold,
             "current_price": self.current_price,
             "balance_krw": round(self.balance_krw, 0),
             "balance_coin": self.balance_coin,
@@ -101,8 +112,11 @@ async def trading_loop(on_update: Callable):
                 ma_short=config.MA_SHORT,
                 ma_long=config.MA_LONG,
                 rsi_period=config.RSI_PERIOD,
-                rsi_buy=config.RSI_BUY,
-                rsi_sell=config.RSI_SELL,
+                rsi_buy=state.rsi_buy_threshold,
+                rsi_sell=state.rsi_sell_threshold,
+                use_golden_cross=state.use_golden_cross,
+                use_rsi_buy=state.use_rsi_buy,
+                use_rsi_sell=state.use_rsi_sell,
             )
             state.last_signal = signal
             state.indicators = indicators

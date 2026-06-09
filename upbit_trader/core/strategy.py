@@ -19,6 +19,9 @@ def get_signal(
     rsi_period: int = 14,
     rsi_buy: float = 50,
     rsi_sell: float = 70,
+    use_golden_cross: bool = True,
+    use_rsi_buy: bool = True,
+    use_rsi_sell: bool = True,
 ) -> tuple[str, dict]:
     """골든크로스 + RSI 전략. 'buy' / 'sell' / 'hold' 반환."""
     if df is None or len(df) < ma_long + 2:
@@ -36,9 +39,23 @@ def get_signal(
     golden = prev5 <= prev20 and curr5 > curr20
     dead = prev5 >= prev20 and curr5 < curr20
 
-    if golden and curr_rsi < rsi_buy:
+    # 매수: 활성화된 조건이 모두 충족되어야 함
+    buy_conditions = []
+    if use_golden_cross:
+        buy_conditions.append(bool(golden))
+    if use_rsi_buy:
+        buy_conditions.append(float(curr_rsi) < rsi_buy)
+
+    # 매도: 활성화된 조건 중 하나라도 충족되면 매도
+    sell_conditions = []
+    if use_golden_cross:
+        sell_conditions.append(bool(dead))
+    if use_rsi_sell:
+        sell_conditions.append(float(curr_rsi) > rsi_sell)
+
+    if buy_conditions and all(buy_conditions):
         signal = "buy"
-    elif dead or curr_rsi > rsi_sell:
+    elif sell_conditions and any(sell_conditions):
         signal = "sell"
     else:
         signal = "hold"

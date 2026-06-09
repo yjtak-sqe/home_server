@@ -62,6 +62,11 @@ def get_state():
 class StartBody(BaseModel):
     ticker: str = config.DEFAULT_TICKER
     trade_amount: float = config.DEFAULT_TRADE_AMOUNT
+    use_golden_cross: bool = True
+    use_rsi_buy: bool = True
+    use_rsi_sell: bool = True
+    rsi_buy_threshold: float = config.RSI_BUY
+    rsi_sell_threshold: float = config.RSI_SELL
 
 
 @app.post("/api/start")
@@ -72,6 +77,11 @@ async def start(body: StartBody):
         raise HTTPException(400, "최소 거래금액은 5,000원입니다.")
     bot.state.ticker = body.ticker
     bot.state.trade_amount = body.trade_amount
+    bot.state.use_golden_cross = body.use_golden_cross
+    bot.state.use_rsi_buy = body.use_rsi_buy
+    bot.state.use_rsi_sell = body.use_rsi_sell
+    bot.state.rsi_buy_threshold = body.rsi_buy_threshold
+    bot.state.rsi_sell_threshold = body.rsi_sell_threshold
     bot.start_bot(_broadcast)
     await _broadcast()
     return {"ok": True}

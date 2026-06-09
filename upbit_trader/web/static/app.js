@@ -158,10 +158,19 @@ async function toggleBot() {
   if (botRunning) {
     await fetch('/api/stop', { method: 'POST' });
   } else {
+    const body = {
+      ticker,
+      trade_amount: amount,
+      use_golden_cross: document.getElementById('chkGolden').checked,
+      use_rsi_buy: document.getElementById('chkRsiBuy').checked,
+      use_rsi_sell: document.getElementById('chkRsiSell').checked,
+      rsi_buy_threshold: parseFloat(document.getElementById('rsiBuy').value),
+      rsi_sell_threshold: parseFloat(document.getElementById('rsiSell').value),
+    };
     const res = await fetch('/api/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ticker, trade_amount: amount }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       const d = await res.json();
