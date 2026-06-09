@@ -36,12 +36,6 @@ body { background: var(--bg); color: var(--text); font-family: "Malgun Gothic","
 .hint { font-size:13px; color:var(--text2); margin-bottom:14px; }
 .hint b { color:#7B8FF0; }
 
-.key-row { display:flex; gap:10px; flex-wrap:wrap; }
-.key-row input { flex:1; min-width:180px; background:#1A1D2E; border:1px solid var(--border); border-radius:10px; color:var(--text); padding:11px 13px; font-size:14px; font-family:inherit; }
-.key-row input:focus { outline:none; border-color:var(--accent); }
-
-.btn-connect { background:var(--accent); color:#fff; border:none; border-radius:10px; padding:11px 22px; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap; }
-.btn-connect:hover { filter:brightness(1.1); }
 
 .ctrl-row { display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap; }
 .ctrl-row label { display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--text2); font-weight:600; }

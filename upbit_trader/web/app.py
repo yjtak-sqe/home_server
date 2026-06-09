@@ -12,7 +12,7 @@ if ROOT not in sys.path:
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel  # noqa: F401 (StartBody)
 
 import config
 from core import bot
@@ -34,6 +34,10 @@ async def _broadcast():
 
 @asynccontextmanager
 async def _lifespan(app):
+    access = os.environ.get("UPBIT_ACCESS_KEY", "").strip()
+    secret = os.environ.get("UPBIT_SECRET_KEY", "").strip()
+    if access and secret:
+        bot.state.set_keys(access, secret)
     yield
     bot.stop_bot()
 
@@ -52,19 +56,6 @@ def index():
 @app.get("/api/state")
 def get_state():
     return bot.state.to_dict()
-
-
-class ConnectBody(BaseModel):
-    access_key: str
-    secret_key: str
-
-
-@app.post("/api/connect")
-def connect(body: ConnectBody):
-    if not body.access_key.strip() or not body.secret_key.strip():
-        raise HTTPException(400, "API 키를 입력해 주세요.")
-    bot.state.set_keys(body.access_key.strip(), body.secret_key.strip())
-    return {"ok": True}
 
 
 class StartBody(BaseModel):

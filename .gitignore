@@ -9,3 +9,4 @@ catalog_manager/output/
 catalog_manager/build/
 catalog_manager/dist/
 .DS_Store
+.env

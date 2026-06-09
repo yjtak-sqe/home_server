@@ -182,6 +182,7 @@ services:
     image: upbit-trader:latest
     container_name: upbit-trader
     restart: unless-stopped
+    env_file: .env
     ports:
       - "8091:8000"
 

@@ -151,31 +151,6 @@ function updateUI(s) {
 }
 
 // ── API 호출 ─────────────────────────────────────────────────────────────
-async function connect() {
-  const access = document.getElementById('accessKey').value.trim();
-  const secret = document.getElementById('secretKey').value.trim();
-  const errEl = document.getElementById('connectErr');
-  try {
-    const res = await fetch('/api/connect', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ access_key: access, secret_key: secret }),
-    });
-    if (!res.ok) {
-      const d = await res.json();
-      errEl.textContent = d.detail || '연결 실패';
-      errEl.hidden = false;
-      return;
-    }
-    errEl.hidden = true;
-    const state = await fetch('/api/state').then(r => r.json());
-    updateUI(state);
-  } catch (e) {
-    errEl.textContent = '서버 오류: ' + e.message;
-    errEl.hidden = false;
-  }
-}
-
 async function toggleBot() {
   const ticker = document.getElementById('tickerSel').value;
   const amount = parseFloat(document.getElementById('tradeAmt').value);
