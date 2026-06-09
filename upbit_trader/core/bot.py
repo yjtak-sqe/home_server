@@ -126,12 +126,21 @@ async def trading_loop(on_update: Callable):
             if state._upbit:
                 if signal == "buy" and state.balance_krw >= state.trade_amount:
                     result = state._upbit.buy_market_order(state.ticker, state.trade_amount)
-                    _log_trade("buy", price, state.trade_amount, result)
+                    if result and isinstance(result, dict) and result.get("uuid"):
+                        _log_trade("buy", price, state.trade_amount, result.get("uuid", ""))
+                        await _refresh_balances()
+                    else:
+                        state.error = f"매수 실패: {result}"
                 elif signal == "sell" and state.balance_coin > 0:
                     result = state._upbit.sell_market_order(state.ticker, state.balance_coin)
-                    _log_trade("sell", price, state.balance_coin * price, result)
+                    if result and isinstance(result, dict) and result.get("uuid"):
+                        _log_trade("sell", price, state.balance_coin * price, result.get("uuid", ""))
+                        await _refresh_balances()
+                    else:
+                        state.error = f"매도 실패: {result}"
 
-            state.error = None
+            if not state.error:
+                state.error = None
         except Exception as e:
             state.error = str(e)
 
