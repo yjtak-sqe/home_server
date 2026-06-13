@@ -631,7 +631,11 @@ class GameScene extends Phaser.Scene {
         if(best){
           this._park(best);
         } else {
-          // 슬롯 근처 아니면 계속 들고 다님 (아무것도 안 함)
+          // 슬롯 근처 아니면 박스로 반환
+          const car=this.dragCar; this.dragCar=null;
+          const bx=this.bx+this.bw/2, by=this.by+this.bh/2;
+          this.tweens.add({targets:car,x:bx,y:by,scaleX:0,scaleY:0,duration:220,ease:'Back.In',
+            onComplete:()=>car.destroy()});
         }
         return;
       }
