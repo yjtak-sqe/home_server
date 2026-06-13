@@ -588,10 +588,14 @@ class GameScene extends Phaser.Scene {
 
     this.boxCars=[];
     const count = Math.max(this.totalSlots, 14);
-    const sp = (this.bh-54) / count;
+    const rows = Math.ceil(count / 2);
+    const sp = (this.bh-54) / rows;
     const types = Phaser.Utils.Array.Shuffle([...CAR_TYPE_KEYS]);
     for(let i=0;i<count;i++){
-      const cx=this.bx+this.bw/2, cy=this.by+44+i*sp+sp/2;
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const cx = this.bx + (col===0 ? this.bw*0.27 : this.bw*0.73);
+      const cy = this.by+44+row*sp+sp/2;
       const type=types[i % types.length];
       const car=this.add.image(cx,cy,'car_'+type).setScale(S_BOX).setAngle(90).setDepth(3);
       this.boxCars.push({x:cx,y:cy,type,sprite:car});
