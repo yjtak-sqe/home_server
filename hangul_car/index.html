@@ -303,14 +303,73 @@ class GameScene extends Phaser.Scene {
 
   _bg() {
     const g=this.add.graphics();
-    g.fillGradientStyle(0x5CA8D8,0x5CA8D8,0x87CEEB,0x87CEEB);
+    // 하늘 그라디언트
+    g.fillGradientStyle(0x4A90D9,0x4A90D9,0x87CEEB,0x87CEEB);
     g.fillRect(0,0,W,H*0.62);
-    g.fillStyle(0x4a7a30); g.fillRect(0,H*0.62,W,H*0.38);
-    g.fillStyle(0x455A64); g.fillRect(0,H*0.62,W,16);
+    // 잔디 (두 레이어로 깊이감)
+    g.fillStyle(0x3d6b22); g.fillRect(0,H*0.62,W,H*0.38);
+    g.fillStyle(0x4a7a2a); g.fillRect(0,H*0.67,W,H*0.33);
+    // 도로 (아스팔트 베이스)
+    g.fillStyle(0x48484a); g.fillRect(0,H*0.60,W,20);
+    // 도로 상단 하이라이트 (입체 도로 느낌)
+    g.fillStyle(0x606062,0.8); g.fillRect(0,H*0.60,W,3);
+    // 도로 하단 그림자
+    g.fillStyle(0x2a2a2c,0.9); g.fillRect(0,H*0.60+17,W,3);
+    // 차선 (노란색 점선)
     g.fillStyle(0xFFEB3B);
-    for(let x=0;x<W;x+=40) g.fillRect(x,H*0.62+5,22,4);
+    for(let x=0;x<W;x+=40) g.fillRect(x,H*0.60+8,22,4);
+    // 잔디 디테일 (얕은 무늬)
+    g.fillStyle(0x426b20,0.5);
+    for(let x=0;x<W;x+=24) g.fillRect(x,H*0.65,3,8);
+    for(let x=12;x<W;x+=24) g.fillRect(x,H*0.72,3,6);
     drawClouds(this,[[50,38],[270,50],[530,34],[750,52]]);
-    this.add.circle(845,50,30,0xFFD54F);
+    // 태양 + 햇살
+    const sun=this.add.circle(845,50,30,0xFFD54F);
+    const sg=this.add.graphics().lineStyle(2,0xFFD54F,0.5);
+    [[0,-42],[29,-30],[42,0],[29,30],[0,42],[-29,30],[-42,0],[-29,-30]].forEach(([dx,dy])=>{
+      sg.beginPath();sg.moveTo(845+dx*0.85,50+dy*0.85);sg.lineTo(845+dx,50+dy);sg.strokePath();
+    });
+  }
+
+  // ── 주차장 공용 아스팔트 텍스처 그리기 ──────────────────────────────────
+  _drawAsphalt(g, x, y, w, h, radius=14) {
+    // 1. 지면 드롭섀도 (플랫폼 입체감)
+    g.fillStyle(0x000000, 0.38);
+    g.fillRoundedRect(x+5, y+7, w, h, radius);
+    // 2. 아스팔트 본체
+    g.fillStyle(0x3c3c3c);
+    g.fillRoundedRect(x, y, w, h, radius);
+    // 3. 아스팔트 표면 약간 밝은 중심 (돔 느낌)
+    g.fillStyle(0x424242, 0.6);
+    g.fillRoundedRect(x+3, y+3, w-6, h-6, radius-2);
+    // 4. 집골재 스펙클 텍스처 (의사 난수)
+    g.fillStyle(0x555555, 0.55);
+    for(let i=0;i<60;i++){
+      const tx=x+4+((i*47+31)%(w-8));
+      const ty=y+4+((i*61+17)%(h-8));
+      g.fillRect(tx,ty,2,2);
+    }
+    g.fillStyle(0x282828, 0.4);
+    for(let i=0;i<35;i++){
+      const tx=x+4+((i*71+53)%(w-8));
+      const ty=y+4+((i*43+29)%(h-8));
+      g.fillRect(tx,ty,1.5,1.5);
+    }
+    // 5. 상단/좌측 하이라이트 엣지 (올라온 플랫폼)
+    g.lineStyle(2.5, 0x606060, 0.9);
+    g.beginPath();
+    g.moveTo(x+radius, y); g.lineTo(x+w-radius, y);  // top
+    g.moveTo(x, y+radius); g.lineTo(x, y+h-radius);  // left
+    g.strokePath();
+    // 6. 하단/우측 어두운 엣지 (그림자면)
+    g.lineStyle(2.5, 0x1a1a1a, 0.9);
+    g.beginPath();
+    g.moveTo(x+radius, y+h); g.lineTo(x+w-radius, y+h); // bottom
+    g.moveTo(x+w, y+radius); g.lineTo(x+w, y+h-radius); // right
+    g.strokePath();
+    // 7. 외곽 테두리
+    g.lineStyle(1.5, 0x505050, 0.8);
+    g.strokeRoundedRect(x, y, w, h, radius);
   }
 
   _makeLot() {
@@ -326,15 +385,12 @@ class GameScene extends Phaser.Scene {
     const ox = 44, oy = Math.round((H - lotH)/2) + 12;
 
     const g = this.add.graphics();
-    g.fillStyle(0x383838);
-    g.fillRoundedRect(ox-pad, oy-pad, lotW, lotH, 14);
-    g.lineStyle(3, 0x666);
-    g.strokeRoundedRect(ox-pad, oy-pad, lotW, lotH, 14);
+    this._drawAsphalt(g, ox-pad, oy-pad, lotW, lotH);
 
     this.add.text(
       ox + (cols*CS - GAP)/2, oy - pad - 2,
       this.ch + '  🔊',
-      {fontSize:'50px',fontFamily:'"Malgun Gothic",sans-serif',color:'#FFD700',stroke:'#000',strokeThickness:4}
+      {fontSize:'50px',fontFamily:'"Malgun Gothic",sans-serif',color:'#FFD700',stroke:'#1a1a00',strokeThickness:5}
     ).setOrigin(0.5,1).setInteractive({useHandCursor:true})
      .on('pointerdown',()=>speak(this.ch));
 
@@ -344,7 +400,7 @@ class GameScene extends Phaser.Scene {
       const cy = oy + row*CS + CS/2;
       const sg = this.add.graphics();
       this._slotEmpty(sg, cx, cy, angle);
-      const arrow = this.add.text(cx, cy, '↑', {fontSize:'24px',color:'#FFEB3B',alpha:0.5})
+      const arrow = this.add.text(cx, cy, '↑', {fontSize:'22px',color:'#ffffff',alpha:0.35})
         .setOrigin(0.5).setAngle(angle).setDepth(2);
       this.slots.push({x:cx, y:cy, angle, filled:false, car:null, color:0, sg, arrow});
     });
@@ -352,26 +408,52 @@ class GameScene extends Phaser.Scene {
   }
 
   _makeCircleLot({count}) {
-    // 반경: 차들이 꼬리를 물도록 원주 = count * 차 길이
-    const carLen = SVG_H * S_PARK;  // ≈ 98 px
+    const carLen = SVG_H * S_PARK;
     const R = Math.round(count * carLen / (2 * Math.PI));
     const cx = Math.round(W * 0.37), cy = Math.round(H / 2) + 8;
     const outerR = R + CS * 0.58;
     const innerR = R - CS * 0.58;
 
     const g = this.add.graphics();
-    g.fillStyle(0x383838);
+    // 드롭섀도
+    g.fillStyle(0x000000, 0.35);
+    g.fillCircle(cx+5, cy+7, outerR);
+    // 아스팔트 원형
+    g.fillStyle(0x3c3c3c);
     g.fillCircle(cx, cy, outerR);
-    g.lineStyle(3, 0x666666);
+    g.fillStyle(0x424242, 0.5);
+    g.fillCircle(cx, cy, outerR-3);
+    // 텍스처 스펙클
+    g.fillStyle(0x555555, 0.5);
+    for(let i=0;i<50;i++){
+      const a=(i/50)*Math.PI*2, r2=innerR+4+((i*37)%(outerR-innerR-8));
+      g.fillRect(cx+r2*Math.cos(a)-1, cy+r2*Math.sin(a)-1, 2, 2);
+    }
+    // 상단 하이라이트 호
+    g.lineStyle(2.5, 0x606060, 0.8);
+    g.beginPath(); g.arc(cx,cy,outerR,-Math.PI*0.75,-Math.PI*0.25); g.strokePath();
+    // 하단 그림자 호
+    g.lineStyle(2.5, 0x1a1a1a, 0.8);
+    g.beginPath(); g.arc(cx,cy,outerR,Math.PI*0.25,Math.PI*0.75); g.strokePath();
+    // 외곽선
+    g.lineStyle(1.5, 0x505050, 0.8);
     g.strokeCircle(cx, cy, outerR);
+    // 안쪽 잔디 구멍
     if (innerR > 15) {
-      g.fillStyle(0x4a7a30);
-      g.fillCircle(cx, cy, innerR);
+      g.fillStyle(0x3d6b22); g.fillCircle(cx, cy, innerR);
+      g.fillStyle(0x4a7a2a, 0.7); g.fillCircle(cx, cy, innerR-4);
+      g.lineStyle(2, 0x2e5018, 0.7); g.strokeCircle(cx, cy, innerR);
+      // 잔디 디테일
+      g.fillStyle(0x426b20, 0.5);
+      for(let i=0;i<16;i++){
+        const a=(i/16)*Math.PI*2, r3=innerR*0.5;
+        g.fillRect(cx+r3*Math.cos(a)-1, cy+r3*Math.sin(a)-1, 3, 5);
+      }
     }
 
     this.add.text(cx, cy - outerR - 2, this.ch + '  🔊', {
       fontSize:'50px', fontFamily:'"Malgun Gothic",sans-serif',
-      color:'#FFD700', stroke:'#000', strokeThickness:4,
+      color:'#FFD700', stroke:'#1a1a00', strokeThickness:5,
     }).setOrigin(0.5,1).setInteractive({useHandCursor:true})
      .on('pointerdown',()=>speak(this.ch));
 
@@ -380,14 +462,13 @@ class GameScene extends Phaser.Scene {
       const θn = -Math.PI/2 + ((i+1) / count) * 2*Math.PI;
       const sx = cx + R * Math.cos(θ);
       const sy = cy + R * Math.sin(θ);
-      // 다음 슬롯 방향으로 차 머리가 향하도록 각도 계산
       const dx = Math.cos(θn) - Math.cos(θ);
       const dy = Math.sin(θn) - Math.sin(θ);
       const angle = Math.round((Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360);
 
       const sg = this.add.graphics();
       this._slotEmpty(sg, sx, sy, angle);
-      const arrow = this.add.text(sx, sy, '↑', {fontSize:'22px',color:'#FFEB3B',alpha:0.5})
+      const arrow = this.add.text(sx, sy, '↑', {fontSize:'20px',color:'#ffffff',alpha:0.35})
         .setOrigin(0.5).setAngle(angle).setDepth(2);
       this.slots.push({x:sx, y:sy, angle, filled:false, car:null, color:0, sg, arrow});
     }
@@ -396,28 +477,52 @@ class GameScene extends Phaser.Scene {
 
   _slotEmpty(g, cx, cy, angle) {
     g.clear();
-    // 주차 칸: 차 방향 기준으로 가로폭 좁고 세로 긴 직사각형처럼 그리기
     const isHoriz = (angle === 90 || angle === 270);
-    const sw = isHoriz ? CS : CS * 0.52;  // slot width  (주행 방향과 수직)
-    const sh = isHoriz ? CS * 0.52 : CS;  // slot height (주행 방향과 평행)
-    g.fillStyle(0x2a2a2a);
-    g.fillRect(cx - sw/2, cy - sh/2, sw, sh);
-    g.lineStyle(3, 0xFFEB3B, 0.85);
-    g.strokeRect(cx - sw/2, cy - sh/2, sw, sh);
-    // 중심 방향선
-    g.lineStyle(1.5, 0xFFEB3B, 0.22);
+    const sw = isHoriz ? CS : CS * 0.52;
+    const sh = isHoriz ? CS * 0.52 : CS;
+    const x = cx - sw/2, y = cy - sh/2;
+
+    // 슬롯 함몰된 느낌 (주변 아스팔트보다 살짝 어두움)
+    g.fillStyle(0x262626);
+    g.fillRect(x, y, sw, sh);
+    // 내부 상단/좌측 어두운 엣지 (오목 효과)
+    g.lineStyle(3, 0x0d0d0d, 0.9);
+    g.beginPath(); g.moveTo(x,y+sh); g.lineTo(x,y); g.lineTo(x+sw,y); g.strokePath();
+    // 내부 하단/우측 밝은 엣지
+    g.lineStyle(2, 0x484848, 0.7);
+    g.beginPath(); g.moveTo(x+sw,y); g.lineTo(x+sw,y+sh); g.lineTo(x,y+sh); g.strokePath();
+
+    // 주차선 (흰 페인트, 약간 바랜 느낌)
+    g.lineStyle(2.5, 0xffffff, 0.70);
+    if (isHoriz) {
+      // 위아래 선
+      g.beginPath(); g.moveTo(x+5,y+2); g.lineTo(x+sw-5,y+2); g.strokePath();
+      g.beginPath(); g.moveTo(x+5,y+sh-2); g.lineTo(x+sw-5,y+sh-2); g.strokePath();
+    } else {
+      // 좌우 선
+      g.beginPath(); g.moveTo(x+2,y+5); g.lineTo(x+2,y+sh-5); g.strokePath();
+      g.beginPath(); g.moveTo(x+sw-2,y+5); g.lineTo(x+sw-2,y+sh-5); g.strokePath();
+    }
+    // 중앙 미세 방향 점선
+    g.lineStyle(1.2, 0xffffff, 0.18);
     g.beginPath();
-    g.moveTo(cx, cy - sh/2 + 6);
-    g.lineTo(cx, cy + sh/2 - 6);
+    if(isHoriz){ g.moveTo(x+sw*0.25,cy); g.lineTo(x+sw*0.75,cy); }
+    else        { g.moveTo(cx,y+sh*0.25); g.lineTo(cx,y+sh*0.75); }
     g.strokePath();
   }
 
   _slotFilled(g, cx, cy) {
     g.clear();
-    g.fillStyle(0x1B5E20);
-    g.fillRoundedRect(cx - CS*0.48, cy - CS*0.48, CS*0.96, CS*0.96, 6);
-    g.lineStyle(3, 0x66BB6A, 0.9);
-    g.strokeRoundedRect(cx - CS*0.48, cy - CS*0.48, CS*0.96, CS*0.96, 6);
+    // 초록 주차 완료 글로우
+    g.fillStyle(0x1a4a1a, 0.9);
+    g.fillRoundedRect(cx-CS*0.48, cy-CS*0.48, CS*0.96, CS*0.96, 7);
+    g.fillStyle(0x2e7d32, 0.7);
+    g.fillRoundedRect(cx-CS*0.42, cy-CS*0.42, CS*0.84, CS*0.84, 5);
+    g.lineStyle(2.5, 0x66BB6A, 0.9);
+    g.strokeRoundedRect(cx-CS*0.48, cy-CS*0.48, CS*0.96, CS*0.96, 7);
+    // 내부 하이라이트
+    g.lineStyle(1.5, 0xa5d6a7, 0.5);
+    g.strokeRoundedRect(cx-CS*0.42, cy-CS*0.42, CS*0.84, CS*0.84, 5);
   }
 
   _makeToyBox() {
