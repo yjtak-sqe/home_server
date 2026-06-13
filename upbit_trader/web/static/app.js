@@ -5,6 +5,33 @@ let ma5Series = null;
 let ma20Series = null;
 let botRunning = false;
 
+// ── 설정 로컬 저장/복원 ───────────────────────────────────────────────────
+const SETTINGS_KEY = 'upbit_trader_settings';
+
+function saveSettings() {
+  const s = {
+    ticker:      document.getElementById('tickerSel').value,
+    chkGolden:   document.getElementById('chkGolden').checked,
+    chkRsiBuy:   document.getElementById('chkRsiBuy').checked,
+    chkRsiSell:  document.getElementById('chkRsiSell').checked,
+    rsiBuy:      document.getElementById('rsiBuy').value,
+    rsiSell:     document.getElementById('rsiSell').value,
+  };
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+}
+
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+    if (s.ticker)    document.getElementById('tickerSel').value   = s.ticker;
+    if (s.chkGolden  != null) document.getElementById('chkGolden').checked  = s.chkGolden;
+    if (s.chkRsiBuy  != null) document.getElementById('chkRsiBuy').checked  = s.chkRsiBuy;
+    if (s.chkRsiSell != null) document.getElementById('chkRsiSell').checked = s.chkRsiSell;
+    if (s.rsiBuy)    document.getElementById('rsiBuy').value   = s.rsiBuy;
+    if (s.rsiSell)   document.getElementById('rsiSell').value  = s.rsiSell;
+  } catch(e) {}
+}
+
 // ── 차트 초기화 ──────────────────────────────────────────────────────────
 function initChart() {
   chart = LightweightCharts.createChart(document.getElementById('chart'), {
@@ -98,13 +125,15 @@ function updateUI(s) {
   }
   startBtn.disabled = !s.connected;
 
-  // 전략 설정값 동기화 (페이지 새로고침 후에도 서버 상태 반영)
-  document.getElementById('chkGolden').checked = s.use_golden_cross;
-  document.getElementById('chkRsiBuy').checked = s.use_rsi_buy;
-  document.getElementById('chkRsiSell').checked = s.use_rsi_sell;
-  document.getElementById('rsiBuy').value = s.rsi_buy_threshold;
-  document.getElementById('rsiSell').value = s.rsi_sell_threshold;
-  if (s.ticker) document.getElementById('tickerSel').value = s.ticker;
+  // 봇 실행 중일 때만 서버 전략 설정으로 UI 동기화 (멈춰있을 땐 로컬 설정 유지)
+  if (s.running) {
+    document.getElementById('chkGolden').checked  = s.use_golden_cross;
+    document.getElementById('chkRsiBuy').checked  = s.use_rsi_buy;
+    document.getElementById('chkRsiSell').checked = s.use_rsi_sell;
+    document.getElementById('rsiBuy').value        = s.rsi_buy_threshold;
+    document.getElementById('rsiSell').value       = s.rsi_sell_threshold;
+    if (s.ticker) document.getElementById('tickerSel').value = s.ticker;
+  }
 
   document.getElementById('sPrice').textContent = fmt(s.current_price);
   document.getElementById('sKrw').textContent = fmt(s.balance_krw) + '원';
@@ -167,12 +196,13 @@ async function toggleBot() {
   } else {
     const body = {
       ticker,
-      use_golden_cross: document.getElementById('chkGolden').checked,
-      use_rsi_buy: document.getElementById('chkRsiBuy').checked,
-      use_rsi_sell: document.getElementById('chkRsiSell').checked,
-      rsi_buy_threshold: parseFloat(document.getElementById('rsiBuy').value),
-      rsi_sell_threshold: parseFloat(document.getElementById('rsiSell').value),
+      use_golden_cross:    document.getElementById('chkGolden').checked,
+      use_rsi_buy:         document.getElementById('chkRsiBuy').checked,
+      use_rsi_sell:        document.getElementById('chkRsiSell').checked,
+      rsi_buy_threshold:   parseFloat(document.getElementById('rsiBuy').value),
+      rsi_sell_threshold:  parseFloat(document.getElementById('rsiSell').value),
     };
+    saveSettings();
     const res = await fetch('/api/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -188,10 +218,20 @@ async function toggleBot() {
 }
 
 // ── 초기화 ───────────────────────────────────────────────────────────────
+loadSettings();   // 페이지 로드 시 로컬 저장 설정 복원
 initChart();
-loadChart('KRW-BTC');
+loadChart(document.getElementById('tickerSel').value);
 connectWS();
 
 document.getElementById('tickerSel').addEventListener('change', function () {
+  saveSettings();
   loadChart(this.value);
 });
+
+// 설정 변경 시 즉시 저장
+['chkGolden','chkRsiBuy','chkRsiSell'].forEach(id =>
+  document.getElementById(id).addEventListener('change', saveSettings)
+);
+['rsiBuy','rsiSell'].forEach(id =>
+  document.getElementById(id).addEventListener('change', saveSettings)
+);
