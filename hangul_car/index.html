@@ -339,7 +339,7 @@ class GameScene extends Phaser.Scene {
 
   init({ch}) {
     this.ch=ch; this.slots=[]; this.groundCars=[];
-    this.filled=0; this.dragCar=null; this.dragType=null; this.won=false;
+    this.filled=0; this.dragCar=null; this.dragType=null; this.dragOrigin=null; this.won=false;
   }
 
   create() {
@@ -587,7 +587,7 @@ class GameScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     this.boxCars=[];
-    const count = Math.max(this.totalSlots + 3, 10);
+    const count = Math.max(this.totalSlots, 14);
     const sp = (this.bh-54) / count;
     const types = Phaser.Utils.Array.Shuffle([...CAR_TYPE_KEYS]);
     for(let i=0;i<count;i++){
@@ -620,8 +620,23 @@ class GameScene extends Phaser.Scene {
     this.input.on('pointerdown',(p)=>{
       if(this.won) return;
 
-      // ── 이미 차를 들고 있으면 → 클릭 위치 근처 슬롯에 주차 시도
+      // ── 이미 차를 들고 있으면
       if(this.dragCar){
+        // 장난감 통 클릭 → 원래 자리로 반환
+        if(p.x>=this.bx&&p.x<=this.bx+this.bw&&p.y>=this.by&&p.y<=this.by+this.bh){
+          const car=this.dragCar; const type=this.dragType;
+          const {ox:rx, oy:ry}=this.dragOrigin;
+          this.dragCar=null;
+          car.setAngle(90);
+          this.tweens.add({targets:car,x:rx,y:ry,scaleX:S_BOX,scaleY:S_BOX,duration:220,ease:'Back.Out',
+            onComplete:()=>{
+              this.boxCars.push({x:rx,y:ry,type,sprite:car});
+              this.boxCars.sort((a,b)=>a.y-b.y);
+            }
+          });
+          return;
+        }
+        // 슬롯 근처 → 주차
         let best=null, bestD=90;
         for(const s of this.slots){
           if(s.filled) continue;
@@ -631,7 +646,7 @@ class GameScene extends Phaser.Scene {
         if(best){
           this._park(best);
         } else {
-          // 슬롯 근처 아니면 그 자리에 내려놓기 (다시 집을 수 있음)
+          // 그 자리에 내려놓기 (다시 집을 수 있음)
           const car=this.dragCar; this.dragCar=null;
           car.setPosition(p.x,p.y).setScale(S_PARK).setAngle(90).setDepth(4);
           this.groundCars.push({sprite:car, type:this.dragType});
@@ -660,6 +675,7 @@ class GameScene extends Phaser.Scene {
         if(!best) return;
         best.sprite.destroy();
         this.boxCars=this.boxCars.filter(bc=>bc!==best);
+        this.dragOrigin={ox:best.x, oy:best.y};
         this._grab(p,best.type);
         return;
       }
@@ -681,6 +697,7 @@ class GameScene extends Phaser.Scene {
 
   _grab(p, type) {
     this.dragType = type;
+    if(!this.dragOrigin) this.dragOrigin={ox:this.bx+this.bw/2, oy:this.by+this.bh/2};
     this.dragCar = this.add.image(p.x, p.y, 'car_'+type).setScale(S_DRAG).setAngle(90).setDepth(15);
   }
 
