@@ -13,7 +13,7 @@ body { background: #1a237e; display: flex; justify-content: center; align-items:
   background: rgba(10,15,50,0.88); border: 2px solid #4A80C0;
   border-radius: 12px; padding: 8px 16px;
   box-shadow: 0 4px 18px rgba(0,0,0,0.5);
-  z-index: 100; font-family: "Malgun Gothic", sans-serif;
+  z-index: 9999; font-family: "Malgun Gothic", sans-serif;
 }
 #wordUI label { color: #aaddff; font-size: 14px; white-space: nowrap; }
 #wordInput {
@@ -271,26 +271,39 @@ function getCharDef(ch) {
 }
 
 function _sampleCharDef(ch) {
-  const GRID = 6, CELL = 40;  // 6×6 그리드, 240×240 캔버스
+  const GRID = 6, CELL = 50;  // 6×6 그리드, 300×300 캔버스
   const canvas = document.createElement('canvas');
-  canvas.width = GRID * CELL; canvas.height = GRID * CELL;
+  canvas.width = canvas.height = GRID * CELL;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#000';
-  // 폰트 크기: 캔버스의 88% — 한글 획이 셀 안에 고르게 분포되도록
-  ctx.font = `bold ${Math.round(GRID * CELL * 0.88)}px "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif`;
+
+  const fontSize = Math.round(GRID * CELL * 0.84);
+  const fontStr = `bold ${fontSize}px "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif`;
+  ctx.font = fontStr;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+  // fillText + strokeText 조합으로 얇은 획도 두껍게 표현
+  ctx.fillStyle = '#000';
   ctx.fillText(ch, canvas.width / 2, canvas.height / 2);
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = CELL * 0.18;  // 획 두께 추가
+  ctx.lineJoin = 'round';
+  ctx.strokeText(ch, canvas.width / 2, canvas.height / 2);
 
   const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
   const filled = [];
   for (let r = 0; r < GRID; r++) {
     for (let c = 0; c < GRID; c++) {
-      // 셀 중앙 한 점만 샘플 (threshold 128 이하 = 획)
-      const px = Math.round((c + 0.5) * CELL);
-      const py = Math.round((r + 0.5) * CELL);
-      const idx = (py * canvas.width + px) * 4;
-      if (data[idx] < 128) filled.push([r, c]);
+      // 4×4 서브샘플링: 16개 포인트 중 어두운 픽셀 수 카운트
+      let dark = 0;
+      for (let sy = 0; sy < 4; sy++) {
+        for (let sx = 0; sx < 4; sx++) {
+          const px = Math.round((c + (sx + 0.5) / 4) * CELL);
+          const py = Math.round((r + (sy + 0.5) / 4) * CELL);
+          if (data[(py * canvas.width + px) * 4] < 160) dark++;
+        }
+      }
+      if (dark >= 2) filled.push([r, c]);  // 16개 중 2개 이상 어두우면 획 있음
     }
   }
   if (filled.length < 2) {
@@ -400,8 +413,26 @@ async function startWordGame() {
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('wordStartBtn').addEventListener('click', startWordGame);
-  document.getElementById('wordInput').addEventListener('keydown', e => {
+
+  const wordInput = document.getElementById('wordInput');
+  wordInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') startWordGame();
+  });
+
+  // wordUI 클릭이 Phaser 캔버스로 관통되지 않도록 차단
+  const wordUI = document.getElementById('wordUI');
+  wordUI.addEventListener('pointerdown', e => e.stopPropagation(), true);
+  wordUI.addEventListener('mousedown',   e => e.stopPropagation(), true);
+  wordUI.addEventListener('touchstart',  e => e.stopPropagation(), true);
+
+  // input 포커스 중 Phaser 입력 비활성화
+  wordInput.addEventListener('focus', () => {
+    const scene = window.__phaserGame?.scene?.getScene('Menu');
+    if (scene?.input) scene.input.enabled = false;
+  });
+  wordInput.addEventListener('blur', () => {
+    const scene = window.__phaserGame?.scene?.getScene('Menu');
+    if (scene?.input) scene.input.enabled = true;
   });
 });
 
