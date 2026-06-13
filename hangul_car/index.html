@@ -7,9 +7,39 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: #1a237e; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+#wordUI {
+  position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(10,15,50,0.88); border: 2px solid #4A80C0;
+  border-radius: 12px; padding: 8px 16px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.5);
+  z-index: 100; font-family: "Malgun Gothic", sans-serif;
+}
+#wordUI label { color: #aaddff; font-size: 14px; white-space: nowrap; }
+#wordInput {
+  width: 130px; padding: 5px 10px; border-radius: 7px;
+  border: 1.5px solid #4A80C0; background: #0a1230;
+  color: #fff; font-size: 18px; font-family: "Malgun Gothic", sans-serif;
+  outline: none; letter-spacing: 4px; text-align: center;
+}
+#wordInput:focus { border-color: #64B5F6; box-shadow: 0 0 6px #64B5F690; }
+#wordStartBtn {
+  padding: 6px 16px; border-radius: 7px; border: none;
+  background: #1565C0; color: #fff; font-size: 14px;
+  font-family: "Malgun Gothic", sans-serif; cursor: pointer;
+  transition: background 0.15s;
+}
+#wordStartBtn:hover { background: #1976D2; }
+#wordErr { color: #ff8080; font-size: 12px; display: none; }
 </style>
 </head>
 <body>
+<div id="wordUI">
+  <label>단어 주차장:</label>
+  <input id="wordInput" maxlength="5" placeholder="예) 사랑해" autocomplete="off" spellcheck="false">
+  <button id="wordStartBtn">🚗 시작!</button>
+  <span id="wordErr"></span>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 <script>
 const W = 900, H = 580;
@@ -20,6 +50,8 @@ const S_PARK = 0.78, S_DRAG = 0.72, S_BOX = 0.40;
 
 let currentBg = 0;   // 0=낮 1=저녁 2=밤
 let currentTab = '자음';
+let currentWord = null;   // 단어 모드: 문자열 or null
+let currentWordIdx = 0;   // 현재 진행 중인 글자 인덱스
 
 // ── 탑뷰 자동차 SVG 생성 함수 ──
 function makeCarSVG(b1, b2, r1, r2, extras='') {
@@ -229,6 +261,13 @@ const CHARS = {
   'ㅣ': { path:[[0,0],[1,0],[2,0],[3,0],[4,0]], rows:5, cols:1 },
 };
 
+// CHARS에 없는 글자(완성형 음절 등)에 쓸 기본 주차장 레이아웃
+function getCharDef(ch) {
+  if (CHARS[ch]) return CHARS[ch];
+  // 기본: 2×3 스네이크 6칸
+  return { path:[[0,0],[0,1],[0,2],[1,2],[1,1],[1,0]], rows:2, cols:3 };
+}
+
 const CHAR_GROUPS = {
   '자음': ['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ','ㅂ','ㅅ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'],
   '모음': ['ㅏ','ㅑ','ㅓ','ㅕ','ㅗ','ㅛ','ㅜ','ㅠ','ㅡ','ㅣ'],
@@ -264,12 +303,42 @@ function drawClouds(scene, positions) {
   });
 }
 
+// ── 단어 입력 UI 핸들러 ──────────────────────────────────────────────────
+function showWordUI() { document.getElementById('wordUI').style.display = ''; }
+function hideWordUI() { document.getElementById('wordUI').style.display = 'none'; }
+
+function startWordGame() {
+  const raw = document.getElementById('wordInput').value.trim();
+  const errEl = document.getElementById('wordErr');
+  if (!raw) { errEl.textContent = '글자를 입력해주세요'; errEl.style.display='inline'; return; }
+  if ([...raw].length > 5) { errEl.textContent = '최대 5글자까지 가능해요'; errEl.style.display='inline'; return; }
+  errEl.style.display = 'none';
+  currentWord = [...raw];  // 유니코드 글자 배열
+  currentWordIdx = 0;
+  hideWordUI();
+  // Phaser 씬 시작
+  const game = window.__phaserGame;
+  if (game) {
+    game.scene.getScene('Menu').cameras.main.fadeOut(220);
+    setTimeout(() => game.scene.start('Game', { ch: currentWord[0], wordMode: true }), 220);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('wordStartBtn').addEventListener('click', startWordGame);
+  document.getElementById('wordInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') startWordGame();
+  });
+});
+
 // ── MenuScene ─────────────────────────────────────────────────────────────
 class MenuScene extends Phaser.Scene {
   constructor() { super('Menu'); }
   preload() { preloadCarTextures(this); }
 
   create() {
+    currentWord = null; currentWordIdx = 0;  // 단어 모드 초기화
+    showWordUI();
     this._drawBg();
     this._drawTitle();
     this._drawBgSelector();
@@ -415,12 +484,14 @@ class GameScene extends Phaser.Scene {
   constructor() { super('Game'); }
   preload() { preloadCarTextures(this); }
 
-  init({ch}) {
-    this.ch=ch; this.slots=[]; this.groundCars=[];
+  init({ch, wordMode}) {
+    this.ch=ch; this.wordMode=!!wordMode;
+    this.slots=[]; this.groundCars=[];
     this.filled=0; this.dragCar=null; this.dragType=null; this.dragOrigin=null; this.won=false;
   }
 
   create() {
+    hideWordUI();
     this._bg();
     this._makeLot();
     this._makeToyBox();
@@ -497,7 +568,7 @@ class GameScene extends Phaser.Scene {
   }
 
   _makeLot() {
-    const def = CHARS[this.ch];
+    const def = getCharDef(this.ch);
     if (def.type === 'circle') this._makeCircleLot(def);
     else this._makePathLot(def);
   }
@@ -667,6 +738,29 @@ class GameScene extends Phaser.Scene {
         this.cameras.main.fadeOut(200);
         this.time.delayedCall(200,()=>this.scene.start('Menu'));
       });
+
+    // 단어 모드: 상단 우측에 진행 글자 타일 표시
+    if (this.wordMode && currentWord) {
+      const tileW=44, tileH=44, gap=6;
+      const n = currentWord.length;
+      const totalW = n*(tileW+gap)-gap;
+      let sx = W - 172 - totalW - 16;  // 장난감 통 왼쪽
+      currentWord.forEach((ch, i) => {
+        const tx = sx + i*(tileW+gap) + tileW/2;
+        const ty = 36;
+        const done = i < currentWordIdx;
+        const active = i === currentWordIdx;
+        const bg = this.add.rectangle(tx,ty,tileW,tileH,
+          done ? 0x2e7d32 : active ? 0x1565C0 : 0x000000,
+          done ? 0.9 : active ? 0.88 : 0.45)
+          .setStrokeStyle(2, done ? 0x66BB6A : active ? 0x64B5F6 : 0x555555);
+        this.add.text(tx,ty,ch,{
+          fontSize:'22px',fontFamily:'"Malgun Gothic",sans-serif',
+          color: done ? '#a5d6a7' : active ? '#fff' : '#888',
+        }).setOrigin(0.5);
+        if (done) this.add.text(tx+14,ty-14,'✓',{fontSize:'12px',color:'#66BB6A'}).setOrigin(0.5);
+      });
+    }
   }
 
   _input() {
@@ -773,21 +867,70 @@ class GameScene extends Phaser.Scene {
       ).setAlpha(0).setDepth(20);
       this.tweens.add({targets:t,alpha:1,y:t.y-Phaser.Math.Between(50,90),delay:i*42,duration:480,yoyo:true,ease:'Power2',onComplete:()=>t.destroy()});
     }
+
+    // 단어 모드: 마지막 글자인지 확인
+    const isWordMode = this.wordMode && currentWord;
+    const isLastWordChar = isWordMode && (currentWordIdx >= currentWord.length - 1);
+
     this.time.delayedCall(500,()=>{
       this.add.rectangle(W/2,H/2,W,H,0x000,0.55).setDepth(30);
-      this.add.rectangle(W/2,H/2,440,320,0xFFFDE7).setDepth(31).setStrokeStyle(7,0xFFD700);
-      this.add.text(W/2,H/2-115,'🎊 완성! 잘했어요! 🎊',{fontSize:'30px',fontFamily:'"Malgun Gothic",sans-serif',color:'#333'}).setOrigin(0.5).setDepth(32);
-      const ct=this.add.text(W/2,H/2-28,this.ch,{fontSize:'100px',fontFamily:'"Malgun Gothic",sans-serif',color:'#D32F2F'}).setOrigin(0.5).setDepth(32);
-      this.tweens.add({targets:ct,scaleX:1.2,scaleY:1.2,yoyo:true,duration:280,repeat:2});
-      this.add.text(W/2,H/2+62,'👏 브라보! 정말 잘했어요! 👏',{fontSize:'24px',fontFamily:'"Malgun Gothic",sans-serif',color:'#1565C0'}).setOrigin(0.5).setDepth(32);
-      speak(this.ch);
-      this._btn(W/2,H/2+106,'🔊 다시 읽기',0x00838F,()=>speak(this.ch));
-      this._btn(W/2-100,H/2+150,'🔄 다시 하기',0x388E3C,()=>{this.cameras.main.fadeOut(200);this.time.delayedCall(200,()=>this.scene.restart({ch:this.ch}));});
-      this._btn(W/2+100,H/2+150,'다음 글자 ▶',0x1565C0,()=>{
-        const list = CHAR_GROUPS[currentTab];
-        const next = list[(list.indexOf(this.ch)+1)%list.length];
-        this.cameras.main.fadeOut(200);this.time.delayedCall(200,()=>this.scene.start('Game',{ch:next}));
-      });
+      this.add.rectangle(W/2,H/2,460,330,0xFFFDE7).setDepth(31).setStrokeStyle(7,0xFFD700);
+
+      if (isWordMode && isLastWordChar) {
+        // 단어 전체 완성!
+        const word = currentWord.join('');
+        this.add.text(W/2,H/2-125,'🎊 단어 완성! 🎊',{fontSize:'28px',fontFamily:'"Malgun Gothic",sans-serif',color:'#333'}).setOrigin(0.5).setDepth(32);
+        const wt=this.add.text(W/2,H/2-30,word,{
+          fontSize: word.length<=3?'90px':'66px',
+          fontFamily:'"Malgun Gothic",sans-serif',color:'#D32F2F',
+        }).setOrigin(0.5).setDepth(32);
+        this.tweens.add({targets:wt,scaleX:1.18,scaleY:1.18,yoyo:true,duration:280,repeat:2});
+        this.add.text(W/2,H/2+66,'👏 단어를 모두 주차했어요! 👏',{fontSize:'21px',fontFamily:'"Malgun Gothic",sans-serif',color:'#1565C0'}).setOrigin(0.5).setDepth(32);
+        speak(word);
+        this._btn(W/2,H/2+108,'🔊 단어 읽기',0x00838F,()=>speak(word));
+        this._btn(W/2-110,H/2+152,'🔄 다시 하기',0x388E3C,()=>{
+          currentWordIdx=0;
+          this.cameras.main.fadeOut(200);
+          this.time.delayedCall(200,()=>this.scene.start('Game',{ch:currentWord[0],wordMode:true}));
+        });
+        this._btn(W/2+110,H/2+152,'메뉴로 ▶',0x1565C0,()=>{
+          this.cameras.main.fadeOut(200);this.time.delayedCall(200,()=>this.scene.start('Menu'));
+        });
+      } else if (isWordMode) {
+        // 단어 모드 중간 글자 완성
+        this.add.text(W/2,H/2-120,`${currentWordIdx+1} / ${currentWord.length} 완성! ⭐`,{fontSize:'22px',fontFamily:'"Malgun Gothic",sans-serif',color:'#555'}).setOrigin(0.5).setDepth(32);
+        const ct=this.add.text(W/2,H/2-28,this.ch,{fontSize:'100px',fontFamily:'"Malgun Gothic",sans-serif',color:'#D32F2F'}).setOrigin(0.5).setDepth(32);
+        this.tweens.add({targets:ct,scaleX:1.2,scaleY:1.2,yoyo:true,duration:280,repeat:2});
+        const nextCh = currentWord[currentWordIdx+1];
+        this.add.text(W/2,H/2+60,`다음 글자: ${nextCh}`,{fontSize:'22px',fontFamily:'"Malgun Gothic",sans-serif',color:'#1565C0'}).setOrigin(0.5).setDepth(32);
+        speak(this.ch);
+        this._btn(W/2,H/2+108,'다음 글자 ▶',0x1565C0,()=>{
+          currentWordIdx++;
+          this.cameras.main.fadeOut(200);
+          this.time.delayedCall(200,()=>this.scene.start('Game',{ch:nextCh,wordMode:true}));
+        });
+        // 3초 후 자동 진행
+        this.time.delayedCall(3000,()=>{
+          if(!this.scene.isActive('Game')) return;
+          currentWordIdx++;
+          this.cameras.main.fadeOut(200);
+          this.time.delayedCall(200,()=>this.scene.start('Game',{ch:nextCh,wordMode:true}));
+        });
+      } else {
+        // 일반 모드
+        this.add.text(W/2,H/2-115,'🎊 완성! 잘했어요! 🎊',{fontSize:'30px',fontFamily:'"Malgun Gothic",sans-serif',color:'#333'}).setOrigin(0.5).setDepth(32);
+        const ct=this.add.text(W/2,H/2-28,this.ch,{fontSize:'100px',fontFamily:'"Malgun Gothic",sans-serif',color:'#D32F2F'}).setOrigin(0.5).setDepth(32);
+        this.tweens.add({targets:ct,scaleX:1.2,scaleY:1.2,yoyo:true,duration:280,repeat:2});
+        this.add.text(W/2,H/2+62,'👏 브라보! 정말 잘했어요! 👏',{fontSize:'24px',fontFamily:'"Malgun Gothic",sans-serif',color:'#1565C0'}).setOrigin(0.5).setDepth(32);
+        speak(this.ch);
+        this._btn(W/2,H/2+106,'🔊 다시 읽기',0x00838F,()=>speak(this.ch));
+        this._btn(W/2-100,H/2+150,'🔄 다시 하기',0x388E3C,()=>{this.cameras.main.fadeOut(200);this.time.delayedCall(200,()=>this.scene.restart({ch:this.ch}));});
+        this._btn(W/2+100,H/2+150,'다음 글자 ▶',0x1565C0,()=>{
+          const list = CHAR_GROUPS[currentTab];
+          const next = list[(list.indexOf(this.ch)+1)%list.length];
+          this.cameras.main.fadeOut(200);this.time.delayedCall(200,()=>this.scene.start('Game',{ch:next}));
+        });
+      }
     });
   }
 
@@ -800,7 +943,7 @@ class GameScene extends Phaser.Scene {
   }
 }
 
-new Phaser.Game({
+window.__phaserGame = new Phaser.Game({
   type: Phaser.AUTO,
   width: W, height: H,
   resolution: window.devicePixelRatio || 1,
