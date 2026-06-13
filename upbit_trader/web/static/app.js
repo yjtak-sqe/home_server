@@ -232,6 +232,7 @@ document.getElementById('tickerSel').addEventListener('change', function () {
 ['chkGolden','chkRsiBuy','chkRsiSell'].forEach(id =>
   document.getElementById(id).addEventListener('change', saveSettings)
 );
-['rsiBuy','rsiSell'].forEach(id =>
-  document.getElementById(id).addEventListener('input', saveSettings)
-);
+['rsiBuy','rsiSell'].forEach(id => {
+  document.getElementById(id).addEventListener('input', saveSettings);
+  document.getElementById(id).addEventListener('blur', saveSettings);
+});
