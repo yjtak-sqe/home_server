@@ -13,17 +13,18 @@ body { background: #1a237e; display: flex; justify-content: center; align-items:
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 <script>
 const W = 900, H = 580;
-const CS = 92;   // cell pitch (center-to-center)
+const CS = 92;
 const GAP = 0;
 const SVG_W = 58, SVG_H = 126;
 const S_PARK = 0.78, S_DRAG = 0.72, S_BOX = 0.40;
-// 주차 시 차 렌더 크기: 45 × 98 px
+
+let currentBg = 0;   // 0=낮 1=저녁 2=밤
+let currentTab = '자음';
 
 // ── 탑뷰 자동차 SVG 생성 함수 ──
 function makeCarSVG(b1, b2, r1, r2, extras='') {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="58" height="126">
   <defs>
-    <!-- 차체 메탈릭 그라디언트 (좌측 광원) -->
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0%"   stop-color="${b1}"/>
       <stop offset="12%"  stop-color="${b2}"/>
@@ -32,92 +33,71 @@ function makeCarSVG(b1, b2, r1, r2, extras='') {
       <stop offset="78%"  stop-color="${b1}"/>
       <stop offset="100%" stop-color="${b1}"/>
     </linearGradient>
-    <!-- 루프 그라디언트 -->
     <linearGradient id="rg" x1="0.1" y1="0" x2="0.9" y2="1">
       <stop offset="0%"   stop-color="${r1}"/>
       <stop offset="35%"  stop-color="${r1}"/>
       <stop offset="70%"  stop-color="${r2}"/>
       <stop offset="100%" stop-color="${r2}"/>
     </linearGradient>
-    <!-- 스펙큘러 하이라이트 (도장 광택) -->
     <linearGradient id="sg" x1="0.15" y1="0" x2="0.55" y2="1">
       <stop offset="0%"   stop-color="white" stop-opacity="0.72"/>
       <stop offset="55%"  stop-color="white" stop-opacity="0.08"/>
       <stop offset="100%" stop-color="white" stop-opacity="0"/>
     </linearGradient>
-    <!-- 유리 -->
     <linearGradient id="gg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%"   stop-color="#c8e8f8" stop-opacity="0.92"/>
       <stop offset="50%"  stop-color="#78b8e8" stop-opacity="0.75"/>
       <stop offset="100%" stop-color="#4888c0" stop-opacity="0.85"/>
     </linearGradient>
-    <!-- 유리 반사광 -->
     <linearGradient id="gh" x1="0" y1="0" x2="0.6" y2="1">
       <stop offset="0%"   stop-color="white" stop-opacity="0.6"/>
       <stop offset="100%" stop-color="white" stop-opacity="0"/>
     </linearGradient>
-    <!-- 타이어 (고무) -->
     <radialGradient id="tg" cx="38%" cy="32%" r="62%">
       <stop offset="0%"   stop-color="#555"/>
       <stop offset="100%" stop-color="#111"/>
     </radialGradient>
-    <!-- 알루미늄 림 -->
     <radialGradient id="rimg" cx="35%" cy="30%" r="65%">
       <stop offset="0%"   stop-color="#ececec"/>
       <stop offset="55%"  stop-color="#b8b8b8"/>
       <stop offset="100%" stop-color="#787878"/>
     </radialGradient>
-    <!-- 차체 드롭섀도 -->
     <filter id="bs" x="-15%" y="-8%" width="130%" height="120%">
       <feDropShadow dx="2" dy="3" stdDeviation="3" flood-opacity="0.42"/>
     </filter>
-    <!-- 루프 살짝 띄운 그림자 -->
     <filter id="rs" x="-15%" y="-10%" width="130%" height="125%">
       <feDropShadow dx="1" dy="2" stdDeviation="2.5" flood-opacity="0.30"/>
     </filter>
   </defs>
-
-  <!-- ── 바닥 그림자 (차가 떠있는 느낌) ── -->
   <ellipse cx="30" cy="122" rx="22" ry="4" fill="rgba(0,0,0,0.18)"/>
-
-  <!-- ── 타이어 ── -->
   <rect x="0"  y="14" width="13" height="26" rx="6" fill="url(#tg)"/>
   <rect x="45" y="14" width="13" height="26" rx="6" fill="url(#tg)"/>
   <rect x="0"  y="86" width="13" height="26" rx="6" fill="url(#tg)"/>
   <rect x="45" y="86" width="13" height="26" rx="6" fill="url(#tg)"/>
-  <!-- 타이어 옆면 하이라이트 -->
   <rect x="0"  y="15" width="2.5" height="24" rx="1.2" fill="rgba(255,255,255,0.12)"/>
   <rect x="0"  y="87" width="2.5" height="24" rx="1.2" fill="rgba(255,255,255,0.12)"/>
   <rect x="55.5" y="15" width="2.5" height="24" rx="1.2" fill="rgba(255,255,255,0.07)"/>
   <rect x="55.5" y="87" width="2.5" height="24" rx="1.2" fill="rgba(255,255,255,0.07)"/>
-
-  <!-- ── 알루미늄 림 ── -->
   <circle cx="6.5" cy="27"  r="6.5" fill="url(#rimg)"/>
   <circle cx="51.5" cy="27" r="6.5" fill="url(#rimg)"/>
   <circle cx="6.5" cy="99"  r="6.5" fill="url(#rimg)"/>
   <circle cx="51.5" cy="99" r="6.5" fill="url(#rimg)"/>
-  <!-- 스포크 4개 -->
   <line x1="6.5" y1="20.5" x2="6.5" y2="33.5" stroke="#d0d0d0" stroke-width="1.6"/>
   <line x1="0"   y1="27"   x2="13"  y2="27"   stroke="#d0d0d0" stroke-width="1.6"/>
   <line x1="1.9" y1="22.4" x2="11.1" y2="31.6" stroke="#c0c0c0" stroke-width="1.1"/>
   <line x1="11.1" y1="22.4" x2="1.9" y2="31.6" stroke="#c0c0c0" stroke-width="1.1"/>
-
   <line x1="51.5" y1="20.5" x2="51.5" y2="33.5" stroke="#d0d0d0" stroke-width="1.6"/>
   <line x1="45"   y1="27"   x2="58"   y2="27"   stroke="#d0d0d0" stroke-width="1.6"/>
   <line x1="46.9" y1="22.4" x2="56.1" y2="31.6" stroke="#c0c0c0" stroke-width="1.1"/>
   <line x1="56.1" y1="22.4" x2="46.9" y2="31.6" stroke="#c0c0c0" stroke-width="1.1"/>
-
   <line x1="6.5" y1="92.5" x2="6.5" y2="105.5" stroke="#d0d0d0" stroke-width="1.6"/>
   <line x1="0"   y1="99"   x2="13"  y2="99"    stroke="#d0d0d0" stroke-width="1.6"/>
   <line x1="1.9" y1="94.4" x2="11.1" y2="103.6" stroke="#c0c0c0" stroke-width="1.1"/>
   <line x1="11.1" y1="94.4" x2="1.9" y2="103.6" stroke="#c0c0c0" stroke-width="1.1"/>
-
   <line x1="51.5" y1="92.5" x2="51.5" y2="105.5" stroke="#d0d0d0" stroke-width="1.6"/>
   <line x1="45"   y1="99"   x2="58"   y2="99"    stroke="#d0d0d0" stroke-width="1.6"/>
   <line x1="46.9" y1="94.4" x2="56.1" y2="103.6" stroke="#c0c0c0" stroke-width="1.1"/>
   <line x1="56.1" y1="94.4" x2="46.9" y2="103.6" stroke="#c0c0c0" stroke-width="1.1"/>
-
-  <!-- 허브캡 -->
   <circle cx="6.5" cy="27"  r="2.8" fill="#f0f0f0"/>
   <circle cx="51.5" cy="27" r="2.8" fill="#f0f0f0"/>
   <circle cx="6.5" cy="99"  r="2.8" fill="#f0f0f0"/>
@@ -126,59 +106,34 @@ function makeCarSVG(b1, b2, r1, r2, extras='') {
   <circle cx="51.5" cy="27" r="1.1" fill="#ccc"/>
   <circle cx="6.5" cy="99"  r="1.1" fill="#ccc"/>
   <circle cx="51.5" cy="99" r="1.1" fill="#ccc"/>
-
-  <!-- ── 차체 메인 ── -->
   <rect x="5" y="10" width="48" height="106" rx="11" fill="url(#bg)" filter="url(#bs)"/>
-  <!-- 차체 외곽선 (패널 엣지 느낌) -->
   <rect x="5" y="10" width="48" height="106" rx="11" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="1.2"/>
-
-  <!-- 트렁크 패널 (뒤=위) -->
   <rect x="8"  y="12" width="42" height="22" rx="8"   fill="rgba(0,0,0,0.09)"/>
   <rect x="12" y="14" width="34" height="4"  rx="2"   fill="rgba(255,255,255,0.25)"/>
-  <!-- 후드 패널 (앞=아래) -->
   <rect x="8"  y="92" width="42" height="22" rx="8"   fill="rgba(0,0,0,0.09)"/>
   <rect x="12" y="95" width="20" height="4"  rx="2"   fill="rgba(255,255,255,0.22)"/>
-
-  <!-- ── 뒷유리 ── -->
   <rect x="13" y="19" width="32" height="17" rx="5" fill="url(#gg)"/>
   <rect x="14" y="20" width="18" height="8"  rx="3" fill="url(#gh)"/>
-  <!-- 와이퍼 라인 -->
   <line x1="15" y1="34" x2="43" y2="34" stroke="rgba(0,0,0,0.25)" stroke-width="1"/>
-
-  <!-- ── 루프 (지붕 — 차체보다 약간 좁고 띄워서 3D 느낌) ── -->
   <rect x="12" y="37" width="34" height="52" rx="8" fill="url(#rg)" filter="url(#rs)"/>
   <rect x="12" y="37" width="34" height="52" rx="8" fill="none" stroke="rgba(0,0,0,0.13)" stroke-width="1.3"/>
-  <!-- 루프 하이라이트 (상단 반사광) -->
   <ellipse cx="22" cy="45" rx="9" ry="6" fill="rgba(255,255,255,0.38)"/>
-
-  <!-- 도어라인 (앞뒤 도어 구분) -->
   <line x1="7" y1="65" x2="51" y2="65" stroke="rgba(0,0,0,0.16)" stroke-width="1.4"/>
-  <!-- 도어핸들 (좌측) -->
   <rect x="6"  y="54" width="5"  height="2.5" rx="1.2" fill="rgba(0,0,0,0.22)"/>
   <rect x="47" y="54" width="5"  height="2.5" rx="1.2" fill="rgba(0,0,0,0.22)"/>
-  <!-- 도어핸들 (뒷좌석) -->
   <rect x="6"  y="71" width="5"  height="2.5" rx="1.2" fill="rgba(0,0,0,0.22)"/>
   <rect x="47" y="71" width="5"  height="2.5" rx="1.2" fill="rgba(0,0,0,0.22)"/>
-
-  <!-- ── 앞유리 ── -->
   <rect x="13" y="90" width="32" height="17" rx="5" fill="url(#gg)"/>
   <rect x="14" y="91" width="18" height="8"  rx="3" fill="url(#gh)"/>
-  <!-- 앞 와이퍼 -->
   <line x1="15" y1="97" x2="43" y2="97" stroke="rgba(0,0,0,0.25)" stroke-width="1"/>
-
-  <!-- ── 테일라이트 (뒤=위, 밝은 핑크-화이트로 tint에 강인하게) ── -->
   <rect x="7"  y="11" width="12" height="9" rx="3"   fill="#ffcccc"/>
   <rect x="39" y="11" width="12" height="9" rx="3"   fill="#ffcccc"/>
   <rect x="8"  y="12" width="6"  height="4" rx="2"   fill="rgba(255,255,255,0.65)"/>
   <rect x="40" y="12" width="6"  height="4" rx="2"   fill="rgba(255,255,255,0.65)"/>
-
-  <!-- ── 헤드라이트 (앞=아래, 밝은 노랑-화이트) ── -->
   <rect x="7"  y="106" width="12" height="9" rx="3"  fill="#fffacc"/>
   <rect x="39" y="106" width="12" height="9" rx="3"  fill="#fffacc"/>
   <rect x="8"  y="107" width="7"  height="4" rx="2"  fill="rgba(255,255,255,0.80)"/>
   <rect x="40" y="107" width="7"  height="4" rx="2"  fill="rgba(255,255,255,0.80)"/>
-
-  <!-- ── 전체 차체 광택 오버레이 ── -->
   <rect x="5" y="10" width="48" height="106" rx="11" fill="url(#sg)"/>
 ${extras}</svg>`;
 }
@@ -243,16 +198,42 @@ function preloadCarTextures(scene) {
   });
 }
 
+// ── 한글 자모 경로 정의 ──
+// path: [row, col] 배열, 인접 셀만 연결 (상하좌우)
 const CHARS = {
+  // 자음 14개
   'ㄱ': { path:[[0,0],[0,1],[0,2],[1,2],[2,2]], rows:3, cols:3 },
-  'ㄴ': { path:[[0,0],[1,0],[1,1],[1,2]],        rows:2, cols:3 },
+  'ㄴ': { path:[[0,0],[1,0],[1,1],[1,2]], rows:2, cols:3 },
   'ㄷ': { path:[[0,2],[0,1],[0,0],[1,0],[2,0],[2,1],[2,2]], rows:3, cols:3 },
+  'ㄹ': { path:[[0,0],[0,1],[0,2],[1,2],[1,1],[1,0],[2,0],[2,1],[2,2]], rows:3, cols:3 },
   'ㅁ': { path:[[0,0],[0,1],[0,2],[1,2],[2,2],[2,1],[2,0],[1,0]], rows:3, cols:3 },
+  'ㅂ': { path:[[0,0],[1,0],[2,0],[2,1],[1,1],[0,1],[0,2],[1,2],[2,2]], rows:3, cols:3 },
+  'ㅅ': { path:[[2,0],[1,0],[0,0],[0,1],[0,2],[1,2],[2,2]], rows:3, cols:3 },
   'ㅇ': { type:'circle', count:10 },
+  'ㅈ': { path:[[0,0],[0,1],[0,2],[1,2],[1,1],[1,0],[2,0]], rows:3, cols:3 },
+  'ㅊ': { path:[[0,1],[1,1],[2,1],[2,0],[3,0],[3,1],[3,2],[2,2],[1,2]], rows:4, cols:3 },
+  'ㅋ': { path:[[0,0],[0,1],[0,2],[1,2],[1,1],[2,1],[2,2]], rows:3, cols:3 },
+  'ㅌ': { path:[[0,2],[0,1],[0,0],[1,0],[1,1],[1,2],[2,2],[2,1],[2,0]], rows:3, cols:3 },
+  'ㅍ': { path:[[0,0],[1,0],[2,0],[2,1],[2,2],[1,2],[0,2],[0,1],[1,1]], rows:3, cols:3 },
+  'ㅎ': { path:[[0,1],[1,1],[1,0],[2,0],[3,0],[3,1],[3,2],[2,2],[1,2]], rows:4, cols:3 },
+  // 모음 10개
+  'ㅏ': { path:[[0,0],[1,0],[2,0],[2,1],[3,1]], rows:4, cols:2 },
+  'ㅑ': { path:[[0,0],[1,0],[1,1],[2,1],[2,0],[3,0],[3,1]], rows:4, cols:2 },
+  'ㅓ': { path:[[0,1],[1,1],[2,1],[2,0],[3,0]], rows:4, cols:2 },
+  'ㅕ': { path:[[0,1],[1,1],[1,0],[2,0],[2,1],[3,1],[3,0]], rows:4, cols:2 },
+  'ㅗ': { path:[[1,0],[1,1],[0,1],[0,2],[1,2]], rows:2, cols:3 },
+  'ㅛ': { path:[[1,0],[0,0],[0,1],[1,1],[1,2],[0,2],[0,3],[1,3]], rows:2, cols:4 },
+  'ㅜ': { path:[[0,0],[0,1],[1,1],[1,2],[0,2]], rows:2, cols:3 },
+  'ㅠ': { path:[[0,0],[1,0],[1,1],[0,1],[0,2],[1,2],[1,3],[0,3]], rows:2, cols:4 },
+  'ㅡ': { path:[[0,0],[0,1],[0,2],[0,3],[0,4]], rows:1, cols:5 },
+  'ㅣ': { path:[[0,0],[1,0],[2,0],[3,0],[4,0]], rows:5, cols:1 },
 };
-const CHAR_LIST = ['ㄱ','ㄴ','ㄷ','ㅁ','ㅇ'];
 
-// Phaser angle: 0=위 기준, 시계방향 (deg)
+const CHAR_GROUPS = {
+  '자음': ['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ','ㅂ','ㅅ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'],
+  '모음': ['ㅏ','ㅑ','ㅓ','ㅕ','ㅗ','ㅛ','ㅜ','ㅠ','ㅡ','ㅣ'],
+};
+
 function cellAngle(path, i) {
   let dR, dC;
   if (i < path.length - 1) {
@@ -289,46 +270,143 @@ class MenuScene extends Phaser.Scene {
   preload() { preloadCarTextures(this); }
 
   create() {
+    this._drawBg();
+    this._drawTitle();
+    this._drawBgSelector();
+    this._drawTabs();
+    this._drawCards();
+    this.cameras.main.fadeIn(300);
+  }
+
+  _drawBg() {
     const g = this.add.graphics();
-    g.fillGradientStyle(0x5CA8D8,0x5CA8D8,0x87CEEB,0x87CEEB);
-    g.fillRect(0,0,W,H*0.65);
-    g.fillStyle(0x558B2F); g.fillRect(0,H*0.65,W,H*0.35);
-    g.fillStyle(0x455A64); g.fillRect(0,H*0.65,W,16);
-    g.fillStyle(0xFFEB3B);
-    for(let x=0;x<W;x+=40) g.fillRect(x,H*0.65+6,22,4);
-    drawClouds(this,[[70,42],[310,30],[590,48],[790,36]]);
-    this.add.circle(845,52,34,0xFFD54F);
+    if (currentBg === 2) {
+      g.fillGradientStyle(0x050514,0x050514,0x0D1B4A,0x0D1B4A); g.fillRect(0,0,W,H*0.65);
+      g.fillStyle(0xFFFFFF);
+      for(let i=0;i<90;i++){
+        const sx=(i*137+23)%W, sy=(i*89+11)%(H*0.58), sz=(i%5===0)?1.8:(i%3===0)?1.2:0.7;
+        g.fillCircle(sx,sy,sz);
+      }
+      this.add.circle(820,52,26,0xFFFAE0);
+      const mg=this.add.graphics(); mg.fillStyle(0x0D1B4A); mg.fillCircle(832,44,22);
+      g.fillStyle(0x060D14); g.fillRect(0,H*0.65,W,H*0.35);
+      g.fillStyle(0x040B10); g.fillRect(0,H*0.70,W,H*0.30);
+    } else if (currentBg === 1) {
+      g.fillGradientStyle(0x1A0A40,0x1A0A40,0xB84010,0xB84010); g.fillRect(0,0,W,H*0.65);
+      g.fillStyle(0xFF8C00,0.25); g.fillRect(0,H*0.42,W,H*0.23);
+      this.add.circle(820,H*0.65-18,38,0xFF5500);
+      g.fillStyle(0x1A4010); g.fillRect(0,H*0.65,W,H*0.35);
+      g.fillStyle(0x153208); g.fillRect(0,H*0.70,W,H*0.30);
+      drawClouds(this,[[60,60],[290,44],[560,62],[760,40]]);
+    } else {
+      g.fillGradientStyle(0x5CA8D8,0x5CA8D8,0x87CEEB,0x87CEEB); g.fillRect(0,0,W,H*0.65);
+      g.fillStyle(0x558B2F); g.fillRect(0,H*0.65,W,H*0.35);
+      g.fillStyle(0x455A64); g.fillRect(0,H*0.65,W,16);
+      g.fillStyle(0xFFEB3B);
+      for(let x=0;x<W;x+=40) g.fillRect(x,H*0.65+6,22,4);
+      drawClouds(this,[[70,42],[310,30],[590,48],[790,36]]);
+      this.add.circle(845,52,34,0xFFD54F);
+    }
+  }
 
-    this.add.text(W/2,85,'🚗 자동차 주차 한글 🅿',{
-      fontSize:'40px',fontFamily:'"Malgun Gothic",sans-serif',
-      color:'#fff',stroke:'#1a237e',strokeThickness:5,
+  _drawTitle() {
+    const titleColor = currentBg===2 ? '#aaddff' : '#fff';
+    const subColor   = currentBg===2 ? '#88aacc' : '#FFF9C4';
+    this.add.text(W/2,62,'🚗 자동차 주차 한글 🅿',{
+      fontSize:'36px',fontFamily:'"Malgun Gothic",sans-serif',
+      color:titleColor,stroke:'#1a237e',strokeThickness:5,
     }).setOrigin(0.5);
-    this.add.text(W/2,148,'배울 글자를 골라보세요!',{
-      fontSize:'22px',fontFamily:'"Malgun Gothic",sans-serif',color:'#FFF9C4',
+    this.add.text(W/2,104,'배울 글자를 골라보세요!',{
+      fontSize:'18px',fontFamily:'"Malgun Gothic",sans-serif',color:subColor,
     }).setOrigin(0.5);
+  }
 
-    const n = CHAR_LIST.length;
-    const cardW = 138, spacing = (W - 60) / n;
-    CHAR_LIST.forEach((ch, i) => {
-      const x = 30 + spacing/2 + i*spacing, y = 345;
-      const bg = this.add.rectangle(x,y,cardW,165,0xFFFFFF,0.93)
-        .setStrokeStyle(5,0x1565C0).setInteractive({useHandCursor:true});
-      this.add.text(x,y-14,ch,{
-        fontSize:'80px',fontFamily:'"Malgun Gothic",sans-serif',color:'#1A237E',
+  _drawBgSelector() {
+    const labels = ['☀ 낮','🌇 저녁','🌙 밤'];
+    const bw=72, bh=28, gap=8;
+    labels.forEach((lbl, i) => {
+      const bx = W - 12 - (labels.length - i)*(bw+gap) + gap;
+      const by = 10;
+      const isActive = i === currentBg;
+      const bg = this.add.rectangle(bx+bw/2, by+bh/2, bw, bh,
+        isActive ? 0x1565C0 : 0x000000, isActive ? 0.9 : 0.4)
+        .setStrokeStyle(1.5, isActive ? 0x64B5F6 : 0x888888)
+        .setInteractive({useHandCursor:true});
+      this.add.text(bx+bw/2, by+bh/2, lbl, {
+        fontSize:'11px', fontFamily:'"Malgun Gothic",sans-serif', color:'#fff',
+      }).setOrigin(0.5).setDepth(1);
+      bg.on('pointerdown',()=>{ currentBg=i; this.scene.restart(); });
+      bg.on('pointerover',()=>bg.setFillStyle(0x1976D2,0.8));
+      bg.on('pointerout',()=>bg.setFillStyle(isActive?0x1565C0:0x000000, isActive?0.9:0.4));
+    });
+  }
+
+  _drawTabs() {
+    const tabs = ['자음','모음'];
+    const tw=110, th=36, gap=8;
+    const totalTW = tabs.length*(tw+gap)-gap;
+    const startX = (W-totalTW)/2;
+    tabs.forEach((tab,i) => {
+      const tx = startX + i*(tw+gap);
+      const isActive = tab === currentTab;
+      const bg = this.add.rectangle(tx+tw/2, 132, tw, th,
+        isActive ? 0x1565C0 : 0x000000, isActive ? 0.88 : 0.35)
+        .setStrokeStyle(2, isActive ? 0x64B5F6 : 0x666666)
+        .setInteractive({useHandCursor:true});
+      this.add.text(tx+tw/2, 132, tab+(tab==='자음'?' (14)':' (10)'), {
+        fontSize:'15px', fontFamily:'"Malgun Gothic",sans-serif',
+        color: isActive ? '#fff' : '#aaa',
+      }).setOrigin(0.5).setDepth(1);
+      bg.on('pointerdown',()=>{ currentTab=tab; this.scene.restart(); });
+      bg.on('pointerover',()=>{ if(!isActive) bg.setFillStyle(0x0D47A1,0.6); });
+      bg.on('pointerout', ()=>{ if(!isActive) bg.setFillStyle(0x000000,0.35); });
+    });
+  }
+
+  _drawCards() {
+    const list = CHAR_GROUPS[currentTab];
+    const cardW=110, cardH=112, spacingX=22, spacingY=18;
+    const perRow=5;
+    const rowCount = Math.ceil(list.length/perRow);
+    const totalW = perRow*cardW + (perRow-1)*spacingX;
+    const totalH = rowCount*cardH + (rowCount-1)*spacingY;
+    const startX = (W-totalW)/2;
+    const startY = 162 + (H-162-totalH)/2;
+
+    list.forEach((ch, idx) => {
+      const row = Math.floor(idx/perRow);
+      const col = idx % perRow;
+      // for last row with fewer cards, center them
+      const rowItems = (row === rowCount-1) ? (list.length - row*perRow) : perRow;
+      const rowTotalW = rowItems*cardW + (rowItems-1)*spacingX;
+      const rowStartX = (W-rowTotalW)/2;
+      const cx = rowStartX + col*(cardW+spacingX) + cardW/2;
+      const cy = startY + row*(cardH+spacingY) + cardH/2;
+
+      const isNight = currentBg===2;
+      const cardColor  = isNight ? 0x1A2A4A : 0xFFFFFF;
+      const cardAlpha  = isNight ? 0.88 : 0.93;
+      const strokeCol  = isNight ? 0x4A80C0 : 0x1565C0;
+      const textColor  = isNight ? '#88ccff' : '#1A237E';
+      const subColor   = isNight ? '#6699bb' : '#555';
+
+      const bg = this.add.rectangle(cx,cy,cardW,cardH,cardColor,cardAlpha)
+        .setStrokeStyle(4,strokeCol).setInteractive({useHandCursor:true});
+      this.add.text(cx,cy-12,ch,{
+        fontSize:'62px',fontFamily:'"Malgun Gothic",sans-serif',color:textColor,
       }).setOrigin(0.5);
       const cnt = CHARS[ch].type==='circle' ? CHARS[ch].count : CHARS[ch].path.length;
-      this.add.text(x,y+64,`자동차 ${cnt}대`,{
-        fontSize:'14px',fontFamily:'"Malgun Gothic",sans-serif',color:'#555',
+      this.add.text(cx,cy+44,`🚗 ${cnt}대`,{
+        fontSize:'12px',fontFamily:'"Malgun Gothic",sans-serif',color:subColor,
       }).setOrigin(0.5);
 
-      bg.on('pointerover',()=>{bg.setFillStyle(0xE3F2FD,0.95);bg.setScale(1.04);});
-      bg.on('pointerout', ()=>{bg.setFillStyle(0xFFFFFF,0.93);bg.setScale(1);});
+      bg.on('pointerover',()=>{bg.setFillStyle(isNight?0x2A3A6A:0xE3F2FD,0.95);bg.setScale(1.05);});
+      bg.on('pointerout', ()=>{bg.setFillStyle(cardColor,cardAlpha);bg.setScale(1);});
       bg.on('pointerdown',()=>{
         this.cameras.main.fadeOut(220);
         this.time.delayedCall(220,()=>this.scene.start('Game',{ch}));
       });
     });
-    this.cameras.main.fadeIn(300);
   }
 }
 
@@ -353,73 +431,69 @@ class GameScene extends Phaser.Scene {
 
   _bg() {
     const g=this.add.graphics();
-    // 하늘 그라디언트
-    g.fillGradientStyle(0x4A90D9,0x4A90D9,0x87CEEB,0x87CEEB);
-    g.fillRect(0,0,W,H*0.62);
-    // 잔디 (두 레이어로 깊이감)
-    g.fillStyle(0x3d6b22); g.fillRect(0,H*0.62,W,H*0.38);
-    g.fillStyle(0x4a7a2a); g.fillRect(0,H*0.67,W,H*0.33);
-    // 도로 (아스팔트 베이스)
-    g.fillStyle(0x48484a); g.fillRect(0,H*0.60,W,20);
-    // 도로 상단 하이라이트 (입체 도로 느낌)
-    g.fillStyle(0x606062,0.8); g.fillRect(0,H*0.60,W,3);
-    // 도로 하단 그림자
-    g.fillStyle(0x2a2a2c,0.9); g.fillRect(0,H*0.60+17,W,3);
-    // 차선 (노란색 점선)
-    g.fillStyle(0xFFEB3B);
-    for(let x=0;x<W;x+=40) g.fillRect(x,H*0.60+8,22,4);
-    // 잔디 디테일 (얕은 무늬)
-    g.fillStyle(0x426b20,0.5);
-    for(let x=0;x<W;x+=24) g.fillRect(x,H*0.65,3,8);
-    for(let x=12;x<W;x+=24) g.fillRect(x,H*0.72,3,6);
-    drawClouds(this,[[50,38],[270,50],[530,34],[750,52]]);
-    // 태양 + 햇살
-    const sun=this.add.circle(845,50,30,0xFFD54F);
-    const sg=this.add.graphics().lineStyle(2,0xFFD54F,0.5);
-    [[0,-42],[29,-30],[42,0],[29,30],[0,42],[-29,30],[-42,0],[-29,-30]].forEach(([dx,dy])=>{
-      sg.beginPath();sg.moveTo(845+dx*0.85,50+dy*0.85);sg.lineTo(845+dx,50+dy);sg.strokePath();
-    });
+    if (currentBg === 2) {
+      g.fillGradientStyle(0x050514,0x050514,0x0D1B4A,0x0D1B4A); g.fillRect(0,0,W,H*0.62);
+      g.fillStyle(0xFFFFFF);
+      for(let i=0;i<80;i++){
+        const sx=(i*137+23)%W, sy=(i*89+11)%(H*0.56), sz=(i%5===0)?1.8:(i%3===0)?1.1:0.6;
+        g.fillCircle(sx,sy,sz);
+      }
+      this.add.circle(845,50,26,0xFFFAE0);
+      const mg=this.add.graphics(); mg.fillStyle(0x0D1B4A); mg.fillCircle(857,43,22);
+      g.fillStyle(0x060D14); g.fillRect(0,H*0.62,W,H*0.38);
+      g.fillStyle(0x040B10); g.fillRect(0,H*0.67,W,H*0.33);
+      g.lineStyle(2,0x1A3A20,0.4);
+      for(let x=0;x<W;x+=40) g.fillStyle(0xFFEB3B,0.15), g.fillRect(x,H*0.60+8,22,4);
+    } else if (currentBg === 1) {
+      g.fillGradientStyle(0x1A0A40,0x1A0A40,0xC04810,0xC04810); g.fillRect(0,0,W,H*0.62);
+      g.fillStyle(0xFF8C00,0.22); g.fillRect(0,H*0.40,W,H*0.22);
+      const sun=this.add.circle(845,H*0.62-20,40,0xFF5500);
+      g.fillStyle(0x1A4010); g.fillRect(0,H*0.62,W,H*0.38);
+      g.fillStyle(0x153208); g.fillRect(0,H*0.67,W,H*0.33);
+      g.fillStyle(0x48484a); g.fillRect(0,H*0.60,W,20);
+      g.fillStyle(0xFFEB3B);
+      for(let x=0;x<W;x+=40) g.fillRect(x,H*0.60+8,22,4);
+      drawClouds(this,[[50,38],[270,50],[530,34],[750,52]]);
+    } else {
+      g.fillGradientStyle(0x4A90D9,0x4A90D9,0x87CEEB,0x87CEEB); g.fillRect(0,0,W,H*0.62);
+      g.fillStyle(0x3d6b22); g.fillRect(0,H*0.62,W,H*0.38);
+      g.fillStyle(0x4a7a2a); g.fillRect(0,H*0.67,W,H*0.33);
+      g.fillStyle(0x48484a); g.fillRect(0,H*0.60,W,20);
+      g.fillStyle(0x606062,0.8); g.fillRect(0,H*0.60,W,3);
+      g.fillStyle(0x2a2a2c,0.9); g.fillRect(0,H*0.60+17,W,3);
+      g.fillStyle(0xFFEB3B);
+      for(let x=0;x<W;x+=40) g.fillRect(x,H*0.60+8,22,4);
+      g.fillStyle(0x426b20,0.5);
+      for(let x=0;x<W;x+=24) g.fillRect(x,H*0.65,3,8);
+      for(let x=12;x<W;x+=24) g.fillRect(x,H*0.72,3,6);
+      drawClouds(this,[[50,38],[270,50],[530,34],[750,52]]);
+      const sun=this.add.circle(845,50,30,0xFFD54F);
+      const sg=this.add.graphics().lineStyle(2,0xFFD54F,0.5);
+      [[0,-42],[29,-30],[42,0],[29,30],[0,42],[-29,30],[-42,0],[-29,-30]].forEach(([dx,dy])=>{
+        sg.beginPath();sg.moveTo(845+dx*0.85,50+dy*0.85);sg.lineTo(845+dx,50+dy);sg.strokePath();
+      });
+    }
   }
 
-  // ── 주차장 공용 아스팔트 텍스처 그리기 ──────────────────────────────────
   _drawAsphalt(g, x, y, w, h, radius=14) {
-    // 1. 지면 드롭섀도 (플랫폼 입체감)
-    g.fillStyle(0x000000, 0.38);
-    g.fillRoundedRect(x+5, y+7, w, h, radius);
-    // 2. 아스팔트 본체
-    g.fillStyle(0x3c3c3c);
-    g.fillRoundedRect(x, y, w, h, radius);
-    // 3. 아스팔트 표면 약간 밝은 중심 (돔 느낌)
-    g.fillStyle(0x424242, 0.6);
-    g.fillRoundedRect(x+3, y+3, w-6, h-6, radius-2);
-    // 4. 집골재 스펙클 텍스처 (의사 난수)
+    g.fillStyle(0x000000, 0.38); g.fillRoundedRect(x+5, y+7, w, h, radius);
+    g.fillStyle(0x3c3c3c); g.fillRoundedRect(x, y, w, h, radius);
+    g.fillStyle(0x424242, 0.6); g.fillRoundedRect(x+3, y+3, w-6, h-6, radius-2);
     g.fillStyle(0x555555, 0.55);
     for(let i=0;i<60;i++){
-      const tx=x+4+((i*47+31)%(w-8));
-      const ty=y+4+((i*61+17)%(h-8));
-      g.fillRect(tx,ty,2,2);
+      g.fillRect(x+4+((i*47+31)%(w-8)), y+4+((i*61+17)%(h-8)), 2, 2);
     }
     g.fillStyle(0x282828, 0.4);
     for(let i=0;i<35;i++){
-      const tx=x+4+((i*71+53)%(w-8));
-      const ty=y+4+((i*43+29)%(h-8));
-      g.fillRect(tx,ty,1.5,1.5);
+      g.fillRect(x+4+((i*71+53)%(w-8)), y+4+((i*43+29)%(h-8)), 1.5, 1.5);
     }
-    // 5. 상단/좌측 하이라이트 엣지 (올라온 플랫폼)
     g.lineStyle(2.5, 0x606060, 0.9);
-    g.beginPath();
-    g.moveTo(x+radius, y); g.lineTo(x+w-radius, y);  // top
-    g.moveTo(x, y+radius); g.lineTo(x, y+h-radius);  // left
-    g.strokePath();
-    // 6. 하단/우측 어두운 엣지 (그림자면)
+    g.beginPath(); g.moveTo(x+radius, y); g.lineTo(x+w-radius, y);
+    g.moveTo(x, y+radius); g.lineTo(x, y+h-radius); g.strokePath();
     g.lineStyle(2.5, 0x1a1a1a, 0.9);
-    g.beginPath();
-    g.moveTo(x+radius, y+h); g.lineTo(x+w-radius, y+h); // bottom
-    g.moveTo(x+w, y+radius); g.lineTo(x+w, y+h-radius); // right
-    g.strokePath();
-    // 7. 외곽 테두리
-    g.lineStyle(1.5, 0x505050, 0.8);
-    g.strokeRoundedRect(x, y, w, h, radius);
+    g.beginPath(); g.moveTo(x+radius, y+h); g.lineTo(x+w-radius, y+h);
+    g.moveTo(x+w, y+radius); g.lineTo(x+w, y+h-radius); g.strokePath();
+    g.lineStyle(1.5, 0x505050, 0.8); g.strokeRoundedRect(x, y, w, h, radius);
   }
 
   _makeLot() {
@@ -465,35 +539,23 @@ class GameScene extends Phaser.Scene {
     const innerR = R - CS * 0.58;
 
     const g = this.add.graphics();
-    // 드롭섀도
-    g.fillStyle(0x000000, 0.35);
-    g.fillCircle(cx+5, cy+7, outerR);
-    // 아스팔트 원형
-    g.fillStyle(0x3c3c3c);
-    g.fillCircle(cx, cy, outerR);
-    g.fillStyle(0x424242, 0.5);
-    g.fillCircle(cx, cy, outerR-3);
-    // 텍스처 스펙클
+    g.fillStyle(0x000000, 0.35); g.fillCircle(cx+5, cy+7, outerR);
+    g.fillStyle(0x3c3c3c); g.fillCircle(cx, cy, outerR);
+    g.fillStyle(0x424242, 0.5); g.fillCircle(cx, cy, outerR-3);
     g.fillStyle(0x555555, 0.5);
     for(let i=0;i<50;i++){
       const a=(i/50)*Math.PI*2, r2=innerR+4+((i*37)%(outerR-innerR-8));
       g.fillRect(cx+r2*Math.cos(a)-1, cy+r2*Math.sin(a)-1, 2, 2);
     }
-    // 상단 하이라이트 호
     g.lineStyle(2.5, 0x606060, 0.8);
     g.beginPath(); g.arc(cx,cy,outerR,-Math.PI*0.75,-Math.PI*0.25); g.strokePath();
-    // 하단 그림자 호
     g.lineStyle(2.5, 0x1a1a1a, 0.8);
     g.beginPath(); g.arc(cx,cy,outerR,Math.PI*0.25,Math.PI*0.75); g.strokePath();
-    // 외곽선
-    g.lineStyle(1.5, 0x505050, 0.8);
-    g.strokeCircle(cx, cy, outerR);
-    // 안쪽 잔디 구멍
+    g.lineStyle(1.5, 0x505050, 0.8); g.strokeCircle(cx, cy, outerR);
     if (innerR > 15) {
       g.fillStyle(0x3d6b22); g.fillCircle(cx, cy, innerR);
       g.fillStyle(0x4a7a2a, 0.7); g.fillCircle(cx, cy, innerR-4);
       g.lineStyle(2, 0x2e5018, 0.7); g.strokeCircle(cx, cy, innerR);
-      // 잔디 디테일
       g.fillStyle(0x426b20, 0.5);
       for(let i=0;i<16;i++){
         const a=(i/16)*Math.PI*2, r3=innerR*0.5;
@@ -515,7 +577,6 @@ class GameScene extends Phaser.Scene {
       const dx = Math.cos(θn) - Math.cos(θ);
       const dy = Math.sin(θn) - Math.sin(θ);
       const angle = Math.round((Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360);
-
       const sg = this.add.graphics();
       this._slotEmpty(sg, sx, sy, angle);
       const arrow = this.add.text(sx, sy, '↑', {fontSize:'20px',color:'#ffffff',alpha:0.35})
@@ -531,29 +592,19 @@ class GameScene extends Phaser.Scene {
     const sw = isHoriz ? CS : CS * 0.52;
     const sh = isHoriz ? CS * 0.52 : CS;
     const x = cx - sw/2, y = cy - sh/2;
-
-    // 슬롯 함몰된 느낌 (주변 아스팔트보다 살짝 어두움)
-    g.fillStyle(0x262626);
-    g.fillRect(x, y, sw, sh);
-    // 내부 상단/좌측 어두운 엣지 (오목 효과)
+    g.fillStyle(0x262626); g.fillRect(x, y, sw, sh);
     g.lineStyle(3, 0x0d0d0d, 0.9);
     g.beginPath(); g.moveTo(x,y+sh); g.lineTo(x,y); g.lineTo(x+sw,y); g.strokePath();
-    // 내부 하단/우측 밝은 엣지
     g.lineStyle(2, 0x484848, 0.7);
     g.beginPath(); g.moveTo(x+sw,y); g.lineTo(x+sw,y+sh); g.lineTo(x,y+sh); g.strokePath();
-
-    // 주차선 (흰 페인트, 약간 바랜 느낌)
     g.lineStyle(2.5, 0xffffff, 0.70);
     if (isHoriz) {
-      // 위아래 선
       g.beginPath(); g.moveTo(x+5,y+2); g.lineTo(x+sw-5,y+2); g.strokePath();
       g.beginPath(); g.moveTo(x+5,y+sh-2); g.lineTo(x+sw-5,y+sh-2); g.strokePath();
     } else {
-      // 좌우 선
       g.beginPath(); g.moveTo(x+2,y+5); g.lineTo(x+2,y+sh-5); g.strokePath();
       g.beginPath(); g.moveTo(x+sw-2,y+5); g.lineTo(x+sw-2,y+sh-5); g.strokePath();
     }
-    // 중앙 미세 방향 점선
     g.lineStyle(1.2, 0xffffff, 0.18);
     g.beginPath();
     if(isHoriz){ g.moveTo(x+sw*0.25,cy); g.lineTo(x+sw*0.75,cy); }
@@ -563,14 +614,12 @@ class GameScene extends Phaser.Scene {
 
   _slotFilled(g, cx, cy) {
     g.clear();
-    // 초록 주차 완료 글로우
     g.fillStyle(0x1a4a1a, 0.9);
     g.fillRoundedRect(cx-CS*0.48, cy-CS*0.48, CS*0.96, CS*0.96, 7);
     g.fillStyle(0x2e7d32, 0.7);
     g.fillRoundedRect(cx-CS*0.42, cy-CS*0.42, CS*0.84, CS*0.84, 5);
     g.lineStyle(2.5, 0x66BB6A, 0.9);
     g.strokeRoundedRect(cx-CS*0.48, cy-CS*0.48, CS*0.96, CS*0.96, 7);
-    // 내부 하이라이트
     g.lineStyle(1.5, 0xa5d6a7, 0.5);
     g.strokeRoundedRect(cx-CS*0.42, cy-CS*0.42, CS*0.84, CS*0.84, 5);
   }
@@ -623,10 +672,7 @@ class GameScene extends Phaser.Scene {
   _input() {
     this.input.on('pointerdown',(p)=>{
       if(this.won) return;
-
-      // ── 이미 차를 들고 있으면
       if(this.dragCar){
-        // 장난감 통 클릭 → 원래 자리로 반환
         if(p.x>=this.bx&&p.x<=this.bx+this.bw&&p.y>=this.by&&p.y<=this.by+this.bh){
           const car=this.dragCar; const type=this.dragType;
           const {ox:rx, oy:ry}=this.dragOrigin;
@@ -640,7 +686,6 @@ class GameScene extends Phaser.Scene {
           });
           return;
         }
-        // 슬롯 근처 → 주차
         let best=null, bestD=90;
         for(const s of this.slots){
           if(s.filled) continue;
@@ -650,27 +695,21 @@ class GameScene extends Phaser.Scene {
         if(best){
           this._park(best);
         } else {
-          // 그 자리에 내려놓기 (다시 집을 수 있음)
           const car=this.dragCar; this.dragCar=null;
           car.setPosition(p.x,p.y).setScale(S_PARK).setAngle(90).setDepth(4);
           this.groundCars.push({sprite:car, type:this.dragType});
         }
         return;
       }
-
-      // ── 바닥에 내려놓은 차 클릭 → 다시 집기
       for(let i=0;i<this.groundCars.length;i++){
         const gc=this.groundCars[i];
         if(Phaser.Math.Distance.Between(p.x,p.y,gc.sprite.x,gc.sprite.y)<44){
-          gc.sprite.destroy();
-          this.groundCars.splice(i,1);
+          gc.sprite.destroy(); this.groundCars.splice(i,1);
           this._grab(p,gc.type); return;
         }
       }
-
-      // ── 장난감 통 클릭 → 차 꺼내기
       if(p.x>=this.bx&&p.x<=this.bx+this.bw&&p.y>=this.by&&p.y<=this.by+this.bh){
-        if(this.boxCars.length===0) return;  // 박스 비었으면 무시
+        if(this.boxCars.length===0) return;
         let best=null, bestD=Infinity;
         for(const bc of this.boxCars){
           const d=Phaser.Math.Distance.Between(p.x,p.y,bc.x,bc.y);
@@ -683,8 +722,6 @@ class GameScene extends Phaser.Scene {
         this._grab(p,best.type);
         return;
       }
-
-      // ── 주차된 차 클릭 → 다시 집기
       for(const s of this.slots){
         if(!s.filled) continue;
         if(Math.abs(p.x-s.x)<CS/2+6&&Math.abs(p.y-s.y)<CS/2+6){
@@ -692,8 +729,6 @@ class GameScene extends Phaser.Scene {
         }
       }
     });
-
-    // 차 이동 (자동 스냅 없이 커서만 따라다님)
     this.input.on('pointermove',(p)=>{
       if(this.dragCar) this.dragCar.setPosition(p.x,p.y);
     });
@@ -749,7 +784,8 @@ class GameScene extends Phaser.Scene {
       this._btn(W/2,H/2+106,'🔊 다시 읽기',0x00838F,()=>speak(this.ch));
       this._btn(W/2-100,H/2+150,'🔄 다시 하기',0x388E3C,()=>{this.cameras.main.fadeOut(200);this.time.delayedCall(200,()=>this.scene.restart({ch:this.ch}));});
       this._btn(W/2+100,H/2+150,'다음 글자 ▶',0x1565C0,()=>{
-        const next=CHAR_LIST[(CHAR_LIST.indexOf(this.ch)+1)%CHAR_LIST.length];
+        const list = CHAR_GROUPS[currentTab];
+        const next = list[(list.indexOf(this.ch)+1)%list.length];
         this.cameras.main.fadeOut(200);this.time.delayedCall(200,()=>this.scene.start('Game',{ch:next}));
       });
     });
@@ -765,10 +801,13 @@ class GameScene extends Phaser.Scene {
 }
 
 new Phaser.Game({
-  type:Phaser.AUTO, width:W, height:H,
-  parent:document.body, backgroundColor:'#5CA8D8',
-  scene:[MenuScene,GameScene],
-  scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},
+  type: Phaser.AUTO,
+  width: W, height: H,
+  resolution: window.devicePixelRatio || 1,
+  parent: document.body,
+  backgroundColor: '#0a0a20',
+  scene: [MenuScene, GameScene],
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
 });
 </script>
 </body>
