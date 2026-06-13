@@ -233,5 +233,5 @@ document.getElementById('tickerSel').addEventListener('change', function () {
   document.getElementById(id).addEventListener('change', saveSettings)
 );
 ['rsiBuy','rsiSell'].forEach(id =>
-  document.getElementById(id).addEventListener('change', saveSettings)
+  document.getElementById(id).addEventListener('input', saveSettings)
 );
