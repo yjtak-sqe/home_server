@@ -263,56 +263,77 @@ const CHARS = {
 
 let wordCharDefs = null;  // 단어 모드: 미리 계산된 글자별 주차 레이아웃
 
-// CHARS에 없는 글자는 캔버스 픽셀 샘플링으로 레이아웃 생성
-// ※ 반드시 fonts.ready 이후에 호출해야 정확한 결과가 나옴
-function getCharDef(ch) {
-  if (CHARS[ch]) return CHARS[ch];
-  return _sampleCharDef(ch);
+// ── 한글 음절 자모 분해 기반 주차 레이아웃 ──────────────────────────────────
+// 폰트/캔버스 의존 없이 유니코드 자모를 분해해서 CHARS 경로를 조합
+const _CHO  = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const _JUNG = ['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ'];
+const _JONG = [null,'ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+// 겹자음/합성모음 → CHARS에 있는 기본 자모로 매핑
+const _CHO_NORM  = {'ㄲ':'ㄱ','ㄸ':'ㄷ','ㅃ':'ㅂ','ㅆ':'ㅅ','ㅉ':'ㅈ'};
+const _JUNG_NORM = {'ㅐ':'ㅏ','ㅒ':'ㅑ','ㅔ':'ㅓ','ㅖ':'ㅕ',
+                    'ㅘ':'ㅗ','ㅙ':'ㅗ','ㅚ':'ㅗ','ㅝ':'ㅜ','ㅞ':'ㅜ','ㅟ':'ㅜ','ㅢ':'ㅡ'};
+const _JONG_NORM = {'ㄲ':'ㄱ','ㄳ':'ㄱ','ㄵ':'ㄴ','ㄶ':'ㄴ',
+                    'ㄺ':'ㄹ','ㄻ':'ㄹ','ㄼ':'ㄹ','ㄽ':'ㄹ','ㄾ':'ㄹ','ㄿ':'ㄹ','ㅀ':'ㄹ',
+                    'ㅄ':'ㅂ','ㅆ':'ㅅ'};
+const _HORIZ_V   = new Set(['ㅗ','ㅛ','ㅜ','ㅠ','ㅡ']);
+
+// 자모 하나의 주차 레이아웃 (원 타입은 작은 사각형으로 대체)
+function _jamoDef(ch) {
+  if (!ch) return { path:[[0,0]], rows:1, cols:1 };
+  const key = _CHO_NORM[ch] || ch;
+  const d = CHARS[key];
+  if (!d) return { path:[[0,0],[0,1],[0,2]], rows:1, cols:3 };
+  if (d.type === 'circle') return { path:[[0,0],[0,1],[1,1],[1,0]], rows:2, cols:2 };
+  return d;
 }
 
-function _sampleCharDef(ch) {
-  const GRID = 6, CELL = 50;  // 6×6 그리드, 300×300 캔버스
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = GRID * CELL;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+// 한글 음절(가-힣)을 자모 분해해서 공간 배치된 복합 주차 레이아웃 생성
+function _syllableDef(ch) {
+  const code = ch.charCodeAt(0) - 0xAC00;
+  const jongIdx = code % 28;
+  const jungIdx = Math.floor(code / 28) % 21;
+  const choIdx  = Math.floor(code / 28 / 21);
 
-  const fontSize = Math.round(GRID * CELL * 0.84);
-  const fontStr = `bold ${fontSize}px "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif`;
-  ctx.font = fontStr;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const choJ  = _CHO_NORM[_CHO[choIdx]]  || _CHO[choIdx];
+  const jungJ = _JUNG_NORM[_JUNG[jungIdx]] || _JUNG[jungIdx];
+  const jongRaw = _JONG[jongIdx];
+  const jongJ = jongRaw ? (_JONG_NORM[jongRaw] || jongRaw) : null;
 
-  // fillText + strokeText 조합으로 얇은 획도 두껍게 표현
-  ctx.fillStyle = '#000';
-  ctx.fillText(ch, canvas.width / 2, canvas.height / 2);
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = CELL * 0.18;  // 획 두께 추가
-  ctx.lineJoin = 'round';
-  ctx.strokeText(ch, canvas.width / 2, canvas.height / 2);
+  const cd = _jamoDef(choJ);
+  const jd = _jamoDef(jungJ);
+  const nd = jongJ ? _jamoDef(jongJ) : null;
 
-  const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-  const filled = [];
-  for (let r = 0; r < GRID; r++) {
-    for (let c = 0; c < GRID; c++) {
-      // 4×4 서브샘플링: 16개 포인트 중 어두운 픽셀 수 카운트
-      let dark = 0;
-      for (let sy = 0; sy < 4; sy++) {
-        for (let sx = 0; sx < 4; sx++) {
-          const px = Math.round((c + (sx + 0.5) / 4) * CELL);
-          const py = Math.round((r + (sy + 0.5) / 4) * CELL);
-          if (data[(py * canvas.width + px) * 4] < 160) dark++;
-        }
-      }
-      if (dark >= 2) filled.push([r, c]);  // 16개 중 2개 이상 어두우면 획 있음
+  let cells, rows, cols;
+  if (_HORIZ_V.has(jungJ)) {
+    // 수평 모음(ㅗ,ㅛ,ㅜ,ㅠ,ㅡ): 초성 위, 중성 아래, 종성 더 아래
+    cols = Math.max(cd.cols, jd.cols, nd ? nd.cols : 0);
+    cells = [
+      ...cd.path.map(([r,c]) => [r, c]),
+      ...jd.path.map(([r,c]) => [r + cd.rows, c]),
+    ];
+    rows = cd.rows + jd.rows;
+    if (nd) { cells.push(...nd.path.map(([r,c]) => [r + rows, c])); rows += nd.rows; }
+  } else {
+    // 수직 모음(ㅏ,ㅑ,ㅓ,ㅕ,ㅣ): 초성 왼쪽, 중성 오른쪽, 종성 아래
+    const topRows = Math.max(cd.rows, jd.rows);
+    cells = [
+      ...cd.path.map(([r,c]) => [r, c]),
+      ...jd.path.map(([r,c]) => [r, c + cd.cols]),
+    ];
+    rows = topRows; cols = cd.cols + jd.cols;
+    if (nd) {
+      cells.push(...nd.path.map(([r,c]) => [r + topRows, c]));
+      rows += nd.rows; cols = Math.max(cols, nd.cols);
     }
   }
-  if (filled.length < 2) {
-    return { path:[[0,0],[0,1],[0,2],[1,2],[1,1],[1,0]], rows:2, cols:3 };
-  }
-  const path = _buildSnakePath(filled);
-  const rows = Math.max(...filled.map(([r])=>r)) + 1;
-  const cols = Math.max(...filled.map(([,c])=>c)) + 1;
-  return { path, rows, cols };
+  return { path: _buildSnakePath(cells), rows, cols };
+}
+
+function getCharDef(ch) {
+  if (CHARS[ch]) return CHARS[ch];
+  const code = ch.charCodeAt(0) - 0xAC00;
+  if (code >= 0 && code <= 11171) return _syllableDef(ch);  // 한글 음절
+  return { path:[[0,0],[0,1],[0,2],[1,2],[1,1],[1,0]], rows:2, cols:3 };  // 기타 기본값
 }
 
 // 채워진 셀들을 탐욕적 최근접 이웃으로 순서화 (뱀 경로)
@@ -384,24 +405,16 @@ function drawClouds(scene, positions) {
 function showWordUI() { document.getElementById('wordUI').style.display = ''; }
 function hideWordUI() { document.getElementById('wordUI').style.display = 'none'; }
 
-async function startWordGame() {
+function startWordGame() {
   const raw = document.getElementById('wordInput').value.trim();
   const errEl = document.getElementById('wordErr');
   if (!raw) { errEl.textContent = '글자를 입력해주세요'; errEl.style.display='inline'; return; }
   if ([...raw].length > 5) { errEl.textContent = '최대 5글자까지 가능해요'; errEl.style.display='inline'; return; }
   errEl.style.display = 'none';
 
-  const btn = document.getElementById('wordStartBtn');
-  btn.disabled = true; btn.textContent = '⏳ 로딩중...';
-
   currentWord = [...raw];
   currentWordIdx = 0;
-
-  // 폰트 로딩 완료 후 글자별 주차 레이아웃을 미리 계산
-  await document.fonts.ready;
-  wordCharDefs = currentWord.map(ch => getCharDef(ch));
-
-  btn.disabled = false; btn.textContent = '🚗 시작!';
+  wordCharDefs = currentWord.map(ch => getCharDef(ch));  // 동기 계산 (자모 분해)
   hideWordUI();
 
   const game = window.__phaserGame;
@@ -1033,14 +1046,9 @@ class GameScene extends Phaser.Scene {
         const nextCh = currentWord[currentWordIdx+1];
         this.add.text(W/2,H/2+60,`다음 글자: ${nextCh}`,{fontSize:'22px',fontFamily:'"Malgun Gothic",sans-serif',color:'#1565C0'}).setOrigin(0.5).setDepth(32);
         speak(this.ch);
+        let advanced = false;
         this._btn(W/2,H/2+108,'다음 글자 ▶',0x1565C0,()=>{
-          currentWordIdx++;
-          this.cameras.main.fadeOut(200);
-          this.time.delayedCall(200,()=>this.scene.start('Game',{ch:nextCh,wordMode:true}));
-        });
-        // 3초 후 자동 진행
-        this.time.delayedCall(3000,()=>{
-          if(!this.scene.isActive('Game')) return;
+          if (advanced) return; advanced = true;
           currentWordIdx++;
           this.cameras.main.fadeOut(200);
           this.time.delayedCall(200,()=>this.scene.start('Game',{ch:nextCh,wordMode:true}));
