@@ -98,6 +98,14 @@ function updateUI(s) {
   }
   startBtn.disabled = !s.connected;
 
+  // 전략 설정값 동기화 (페이지 새로고침 후에도 서버 상태 반영)
+  document.getElementById('chkGolden').checked = s.use_golden_cross;
+  document.getElementById('chkRsiBuy').checked = s.use_rsi_buy;
+  document.getElementById('chkRsiSell').checked = s.use_rsi_sell;
+  document.getElementById('rsiBuy').value = s.rsi_buy_threshold;
+  document.getElementById('rsiSell').value = s.rsi_sell_threshold;
+  if (s.ticker) document.getElementById('tickerSel').value = s.ticker;
+
   document.getElementById('sPrice').textContent = fmt(s.current_price);
   document.getElementById('sKrw').textContent = fmt(s.balance_krw) + '원';
   document.getElementById('sCoin').textContent = s.balance_coin ? s.balance_coin.toFixed(6) : '-';
