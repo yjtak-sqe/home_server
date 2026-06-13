@@ -19,59 +19,60 @@ const SVG_W = 58, SVG_H = 126;
 const S_PARK = 0.78, S_DRAG = 0.72, S_BOX = 0.40;
 // 주차 시 차 렌더 크기: 45 × 98 px
 
-// ── 탑뷰 자동차 SVG (장난감 자동차 3D 스타일, 흰색 차체 → Phaser tint 채색) ──
-const CAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="58" height="126">
+// ── 탑뷰 자동차 SVG 생성 함수 ──
+function makeCarSVG(b1, b2, r1, r2, extras='') {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="58" height="126">
   <defs>
     <!-- 차체 메탈릭 그라디언트 (좌측 광원) -->
-    <linearGradient id="bodyG" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%"   stop-color="#aaa"/>
-      <stop offset="12%"  stop-color="#e0e0e0"/>
-      <stop offset="30%"  stop-color="#fff"/>
-      <stop offset="52%"  stop-color="#fafafa"/>
-      <stop offset="78%"  stop-color="#e8e8e8"/>
-      <stop offset="100%" stop-color="#999"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="${b1}"/>
+      <stop offset="12%"  stop-color="${b2}"/>
+      <stop offset="30%"  stop-color="${b2}"/>
+      <stop offset="52%"  stop-color="${b2}"/>
+      <stop offset="78%"  stop-color="${b1}"/>
+      <stop offset="100%" stop-color="${b1}"/>
     </linearGradient>
     <!-- 루프 그라디언트 -->
-    <linearGradient id="roofG" x1="0.1" y1="0" x2="0.9" y2="1">
-      <stop offset="0%"   stop-color="#f8f8f8"/>
-      <stop offset="35%"  stop-color="#ffffff"/>
-      <stop offset="70%"  stop-color="#e4e4e4"/>
-      <stop offset="100%" stop-color="#c8c8c8"/>
+    <linearGradient id="rg" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0%"   stop-color="${r1}"/>
+      <stop offset="35%"  stop-color="${r1}"/>
+      <stop offset="70%"  stop-color="${r2}"/>
+      <stop offset="100%" stop-color="${r2}"/>
     </linearGradient>
     <!-- 스펙큘러 하이라이트 (도장 광택) -->
-    <linearGradient id="specG" x1="0.15" y1="0" x2="0.55" y2="1">
+    <linearGradient id="sg" x1="0.15" y1="0" x2="0.55" y2="1">
       <stop offset="0%"   stop-color="white" stop-opacity="0.72"/>
       <stop offset="55%"  stop-color="white" stop-opacity="0.08"/>
       <stop offset="100%" stop-color="white" stop-opacity="0"/>
     </linearGradient>
     <!-- 유리 -->
-    <linearGradient id="glassG" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="gg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%"   stop-color="#c8e8f8" stop-opacity="0.92"/>
       <stop offset="50%"  stop-color="#78b8e8" stop-opacity="0.75"/>
       <stop offset="100%" stop-color="#4888c0" stop-opacity="0.85"/>
     </linearGradient>
     <!-- 유리 반사광 -->
-    <linearGradient id="glassHi" x1="0" y1="0" x2="0.6" y2="1">
+    <linearGradient id="gh" x1="0" y1="0" x2="0.6" y2="1">
       <stop offset="0%"   stop-color="white" stop-opacity="0.6"/>
       <stop offset="100%" stop-color="white" stop-opacity="0"/>
     </linearGradient>
     <!-- 타이어 (고무) -->
-    <radialGradient id="tireG" cx="38%" cy="32%" r="62%">
+    <radialGradient id="tg" cx="38%" cy="32%" r="62%">
       <stop offset="0%"   stop-color="#555"/>
       <stop offset="100%" stop-color="#111"/>
     </radialGradient>
     <!-- 알루미늄 림 -->
-    <radialGradient id="rimG" cx="35%" cy="30%" r="65%">
+    <radialGradient id="rimg" cx="35%" cy="30%" r="65%">
       <stop offset="0%"   stop-color="#ececec"/>
       <stop offset="55%"  stop-color="#b8b8b8"/>
       <stop offset="100%" stop-color="#787878"/>
     </radialGradient>
     <!-- 차체 드롭섀도 -->
-    <filter id="bodyShad" x="-15%" y="-8%" width="130%" height="120%">
+    <filter id="bs" x="-15%" y="-8%" width="130%" height="120%">
       <feDropShadow dx="2" dy="3" stdDeviation="3" flood-opacity="0.42"/>
     </filter>
     <!-- 루프 살짝 띄운 그림자 -->
-    <filter id="roofShad" x="-15%" y="-10%" width="130%" height="125%">
+    <filter id="rs" x="-15%" y="-10%" width="130%" height="125%">
       <feDropShadow dx="1" dy="2" stdDeviation="2.5" flood-opacity="0.30"/>
     </filter>
   </defs>
@@ -80,10 +81,10 @@ const CAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="58" height="126"
   <ellipse cx="30" cy="122" rx="22" ry="4" fill="rgba(0,0,0,0.18)"/>
 
   <!-- ── 타이어 ── -->
-  <rect x="0"  y="14" width="13" height="26" rx="6" fill="url(#tireG)"/>
-  <rect x="45" y="14" width="13" height="26" rx="6" fill="url(#tireG)"/>
-  <rect x="0"  y="86" width="13" height="26" rx="6" fill="url(#tireG)"/>
-  <rect x="45" y="86" width="13" height="26" rx="6" fill="url(#tireG)"/>
+  <rect x="0"  y="14" width="13" height="26" rx="6" fill="url(#tg)"/>
+  <rect x="45" y="14" width="13" height="26" rx="6" fill="url(#tg)"/>
+  <rect x="0"  y="86" width="13" height="26" rx="6" fill="url(#tg)"/>
+  <rect x="45" y="86" width="13" height="26" rx="6" fill="url(#tg)"/>
   <!-- 타이어 옆면 하이라이트 -->
   <rect x="0"  y="15" width="2.5" height="24" rx="1.2" fill="rgba(255,255,255,0.12)"/>
   <rect x="0"  y="87" width="2.5" height="24" rx="1.2" fill="rgba(255,255,255,0.12)"/>
@@ -91,10 +92,10 @@ const CAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="58" height="126"
   <rect x="55.5" y="87" width="2.5" height="24" rx="1.2" fill="rgba(255,255,255,0.07)"/>
 
   <!-- ── 알루미늄 림 ── -->
-  <circle cx="6.5" cy="27"  r="6.5" fill="url(#rimG)"/>
-  <circle cx="51.5" cy="27" r="6.5" fill="url(#rimG)"/>
-  <circle cx="6.5" cy="99"  r="6.5" fill="url(#rimG)"/>
-  <circle cx="51.5" cy="99" r="6.5" fill="url(#rimG)"/>
+  <circle cx="6.5" cy="27"  r="6.5" fill="url(#rimg)"/>
+  <circle cx="51.5" cy="27" r="6.5" fill="url(#rimg)"/>
+  <circle cx="6.5" cy="99"  r="6.5" fill="url(#rimg)"/>
+  <circle cx="51.5" cy="99" r="6.5" fill="url(#rimg)"/>
   <!-- 스포크 4개 -->
   <line x1="6.5" y1="20.5" x2="6.5" y2="33.5" stroke="#d0d0d0" stroke-width="1.6"/>
   <line x1="0"   y1="27"   x2="13"  y2="27"   stroke="#d0d0d0" stroke-width="1.6"/>
@@ -127,7 +128,7 @@ const CAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="58" height="126"
   <circle cx="51.5" cy="99" r="1.1" fill="#ccc"/>
 
   <!-- ── 차체 메인 ── -->
-  <rect x="5" y="10" width="48" height="106" rx="11" fill="url(#bodyG)" filter="url(#bodyShad)"/>
+  <rect x="5" y="10" width="48" height="106" rx="11" fill="url(#bg)" filter="url(#bs)"/>
   <!-- 차체 외곽선 (패널 엣지 느낌) -->
   <rect x="5" y="10" width="48" height="106" rx="11" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="1.2"/>
 
@@ -139,13 +140,13 @@ const CAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="58" height="126"
   <rect x="12" y="95" width="20" height="4"  rx="2"   fill="rgba(255,255,255,0.22)"/>
 
   <!-- ── 뒷유리 ── -->
-  <rect x="13" y="19" width="32" height="17" rx="5" fill="url(#glassG)"/>
-  <rect x="14" y="20" width="18" height="8"  rx="3" fill="url(#glassHi)"/>
+  <rect x="13" y="19" width="32" height="17" rx="5" fill="url(#gg)"/>
+  <rect x="14" y="20" width="18" height="8"  rx="3" fill="url(#gh)"/>
   <!-- 와이퍼 라인 -->
   <line x1="15" y1="34" x2="43" y2="34" stroke="rgba(0,0,0,0.25)" stroke-width="1"/>
 
   <!-- ── 루프 (지붕 — 차체보다 약간 좁고 띄워서 3D 느낌) ── -->
-  <rect x="12" y="37" width="34" height="52" rx="8" fill="url(#roofG)" filter="url(#roofShad)"/>
+  <rect x="12" y="37" width="34" height="52" rx="8" fill="url(#rg)" filter="url(#rs)"/>
   <rect x="12" y="37" width="34" height="52" rx="8" fill="none" stroke="rgba(0,0,0,0.13)" stroke-width="1.3"/>
   <!-- 루프 하이라이트 (상단 반사광) -->
   <ellipse cx="22" cy="45" rx="9" ry="6" fill="rgba(255,255,255,0.38)"/>
@@ -160,8 +161,8 @@ const CAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="58" height="126"
   <rect x="47" y="71" width="5"  height="2.5" rx="1.2" fill="rgba(0,0,0,0.22)"/>
 
   <!-- ── 앞유리 ── -->
-  <rect x="13" y="90" width="32" height="17" rx="5" fill="url(#glassG)"/>
-  <rect x="14" y="91" width="18" height="8"  rx="3" fill="url(#glassHi)"/>
+  <rect x="13" y="90" width="32" height="17" rx="5" fill="url(#gg)"/>
+  <rect x="14" y="91" width="18" height="8"  rx="3" fill="url(#gh)"/>
   <!-- 앞 와이퍼 -->
   <line x1="15" y1="97" x2="43" y2="97" stroke="rgba(0,0,0,0.25)" stroke-width="1"/>
 
@@ -178,10 +179,69 @@ const CAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="58" height="126"
   <rect x="40" y="107" width="7"  height="4" rx="2"  fill="rgba(255,255,255,0.80)"/>
 
   <!-- ── 전체 차체 광택 오버레이 ── -->
-  <rect x="5" y="10" width="48" height="106" rx="11" fill="url(#specG)"/>
-</svg>`;
+  <rect x="5" y="10" width="48" height="106" rx="11" fill="url(#sg)"/>
+${extras}</svg>`;
+}
 
-const CAR_COLORS = [0xE53935,0x1E88E5,0x43A047,0xF9A825,0x8E24AA,0xF4511E,0xEC407A,0x00ACC1,0x00897B,0x6D4C41];
+const POLICE_EXTRAS = `
+  <rect x="5" y="60" width="48" height="5" rx="2" fill="#1565C0" opacity="0.88"/>
+  <rect x="5" y="64" width="48" height="2" rx="1" fill="#0D47A1" opacity="0.5"/>
+  <rect x="15" y="38" width="28" height="9" rx="3" fill="#1a1a1a"/>
+  <rect x="16" y="39" width="12" height="7" rx="2" fill="#F44336"/>
+  <rect x="30" y="39" width="12" height="7" rx="2" fill="#1565C0"/>
+  <rect x="17" y="40" width="5" height="3" rx="1" fill="rgba(255,180,180,0.7)"/>
+  <rect x="31" y="40" width="5" height="3" rx="1" fill="rgba(180,180,255,0.7)"/>`;
+
+const TAXI_EXTRAS = `
+  <rect x="5" y="60" width="48" height="6" rx="1" fill="#fff" opacity="0.75"/>
+  <rect x="5"  y="60" width="6" height="6" fill="#111"/>
+  <rect x="17" y="60" width="6" height="6" fill="#111"/>
+  <rect x="29" y="60" width="6" height="6" fill="#111"/>
+  <rect x="41" y="60" width="6" height="6" fill="#111"/>
+  <rect x="18" y="37" width="22" height="10" rx="3" fill="#e65100"/>
+  <rect x="20" y="39" width="18" height="6" rx="2" fill="#ff6d00"/>`;
+
+const FIRE_EXTRAS = `
+  <rect x="5" y="57" width="48" height="5" rx="2" fill="#FDD835" opacity="0.92"/>
+  <path d="M14,50 Q29,46 44,50" fill="none" stroke="#8D6E63" stroke-width="5" stroke-linecap="round"/>
+  <path d="M14,50 Q29,46 44,50" fill="none" stroke="#5D4037" stroke-width="2" stroke-linecap="round" stroke-dasharray="3,3"/>`;
+
+const AMBULANCE_EXTRAS = `
+  <rect x="5" y="58" width="48" height="5" rx="2" fill="#D32F2F" opacity="0.88"/>
+  <rect x="20" y="44" width="18" height="15" rx="3" fill="rgba(255,255,255,0.55)"/>
+  <rect x="24" y="50" width="10" height="3" rx="1" fill="#D32F2F"/>
+  <rect x="27" y="47" width="4" height="9" rx="1" fill="#D32F2F"/>`;
+
+const SUV_EXTRAS = `
+  <rect x="5" y="36" width="48" height="54" rx="7" fill="rgba(0,0,0,0.08)"/>`;
+
+const CAR_TYPES = [
+  { id:'police',    svg: makeCarSVG('#b8b8b8','#f8f8f8','#e0e0e0','#b0b0b0', POLICE_EXTRAS) },
+  { id:'taxi',      svg: makeCarSVG('#b8870a','#FFD740','#FFC400','#b07800', TAXI_EXTRAS) },
+  { id:'fire',      svg: makeCarSVG('#8B0000','#EF5350','#E53935','#7B0000', FIRE_EXTRAS) },
+  { id:'ambulance', svg: makeCarSVG('#b0c8d8','#e8f4ff','#f0f8ff','#c0d8e8', AMBULANCE_EXTRAS) },
+  { id:'red',       svg: makeCarSVG('#7B0000','#EF5350','#E53935','#8B1010') },
+  { id:'blue',      svg: makeCarSVG('#0D2B6B','#42A5F5','#2196F3','#0D4080') },
+  { id:'green',     svg: makeCarSVG('#1B4020','#66BB6A','#4CAF50','#2A6030') },
+  { id:'orange',    svg: makeCarSVG('#8B2500','#FF7043','#FF5722','#A03010') },
+  { id:'purple',    svg: makeCarSVG('#350060','#CE93D8','#BA68C8','#4A0070') },
+  { id:'teal',      svg: makeCarSVG('#003530','#4DB6AC','#009688','#005048') },
+  { id:'pink',      svg: makeCarSVG('#7B0040','#F48FB1','#E91E63','#8B0050') },
+  { id:'silver',    svg: makeCarSVG('#484848','#B0B0B0','#C8C8C8','#686868', SUV_EXTRAS) },
+];
+const CAR_TYPE_KEYS = CAR_TYPES.map(t => t.id);
+
+const carBlobUrls = {};
+function preloadCarTextures(scene) {
+  CAR_TYPES.forEach(({id, svg}) => {
+    const key = 'car_' + id;
+    if (scene.textures.exists(key)) return;
+    if (!carBlobUrls[id]) {
+      carBlobUrls[id] = URL.createObjectURL(new Blob([svg], {type:'image/svg+xml'}));
+    }
+    scene.load.image(key, carBlobUrls[id]);
+  });
+}
 
 const CHARS = {
   'ㄱ': { path:[[0,0],[0,1],[0,2],[1,2],[2,2]], rows:3, cols:3 },
@@ -208,15 +268,6 @@ function cellAngle(path, i) {
   return 0;
 }
 
-let carBlobUrl = null;
-function loadCarTexture(scene) {
-  if (scene.textures.exists('car')) return;
-  if (!carBlobUrl) {
-    carBlobUrl = URL.createObjectURL(new Blob([CAR_SVG], { type:'image/svg+xml' }));
-  }
-  scene.load.image('car', carBlobUrl);
-}
-
 function speak(text) {
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
@@ -235,7 +286,7 @@ function drawClouds(scene, positions) {
 // ── MenuScene ─────────────────────────────────────────────────────────────
 class MenuScene extends Phaser.Scene {
   constructor() { super('Menu'); }
-  preload() { loadCarTexture(this); }
+  preload() { preloadCarTextures(this); }
 
   create() {
     const g = this.add.graphics();
@@ -284,12 +335,11 @@ class MenuScene extends Phaser.Scene {
 // ── GameScene ─────────────────────────────────────────────────────────────
 class GameScene extends Phaser.Scene {
   constructor() { super('Game'); }
-  preload() { loadCarTexture(this); }
+  preload() { preloadCarTextures(this); }
 
   init({ch}) {
     this.ch=ch; this.slots=[];
-    this.filled=0; this.dragCar=null; this.dragColor=0; this.won=false;
-    this.toyColors=Phaser.Utils.Array.Shuffle([...CAR_COLORS]);
+    this.filled=0; this.dragCar=null; this.dragType=null; this.won=false;
   }
 
   create() {
@@ -402,7 +452,7 @@ class GameScene extends Phaser.Scene {
       this._slotEmpty(sg, cx, cy, angle);
       const arrow = this.add.text(cx, cy, '↑', {fontSize:'22px',color:'#ffffff',alpha:0.35})
         .setOrigin(0.5).setAngle(angle).setDepth(2);
-      this.slots.push({x:cx, y:cy, angle, filled:false, car:null, color:0, sg, arrow});
+      this.slots.push({x:cx, y:cy, angle, filled:false, car:null, type:null, sg, arrow});
     });
     this.totalSlots = path.length;
   }
@@ -470,7 +520,7 @@ class GameScene extends Phaser.Scene {
       this._slotEmpty(sg, sx, sy, angle);
       const arrow = this.add.text(sx, sy, '↑', {fontSize:'20px',color:'#ffffff',alpha:0.35})
         .setOrigin(0.5).setAngle(angle).setDepth(2);
-      this.slots.push({x:sx, y:sy, angle, filled:false, car:null, color:0, sg, arrow});
+      this.slots.push({x:sx, y:sy, angle, filled:false, car:null, type:null, sg, arrow});
     }
     this.totalSlots = count;
   }
@@ -537,12 +587,14 @@ class GameScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     this.boxCars=[];
-    const count=7, sp=(this.bh-54)/count;
+    const count = this.totalSlots;
+    const sp = (this.bh-54) / count;
+    const types = Phaser.Utils.Array.Shuffle([...CAR_TYPE_KEYS]);
     for(let i=0;i<count;i++){
       const cx=this.bx+this.bw/2, cy=this.by+44+i*sp+sp/2;
-      const color=this.toyColors[i%this.toyColors.length];
-      const car=this.add.image(cx,cy,'car').setTint(color).setScale(S_BOX).setAngle(90).setDepth(3);
-      this.boxCars.push({x:cx,y:cy,color,sprite:car});
+      const type=types[i % types.length];
+      const car=this.add.image(cx,cy,'car_'+type).setScale(S_BOX).setAngle(90).setDepth(3);
+      this.boxCars.push({x:cx,y:cy,type,sprite:car});
     }
   }
 
@@ -573,7 +625,9 @@ class GameScene extends Phaser.Scene {
           const d=Phaser.Math.Distance.Between(p.x,p.y,bc.x,bc.y);
           if(d<bestD){bestD=d;best=bc;}
         }
-        this._grab(p,best.color); return;
+        best.sprite.destroy();
+        this.boxCars = this.boxCars.filter(bc => bc !== best);
+        this._grab(p, best.type); return;
       }
       for(const s of this.slots){
         if(!s.filled) continue;
@@ -611,15 +665,15 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  _grab(p,color) {
-    this.dragColor=color;
-    this.dragCar=this.add.image(p.x,p.y,'car').setTint(color).setScale(S_DRAG).setAngle(90).setDepth(15);
+  _grab(p, type) {
+    this.dragType = type;
+    this.dragCar = this.add.image(p.x, p.y, 'car_'+type).setScale(S_DRAG).setAngle(90).setDepth(15);
   }
 
   _park(slot) {
     const car=this.dragCar; this.dragCar=null;
     car.setPosition(slot.x,slot.y).setScale(S_PARK).setAngle(slot.angle).setDepth(3);
-    slot.filled=true; slot.car=car; slot.color=this.dragColor;
+    slot.filled=true; slot.car=car; slot.type=this.dragType;
     this._slotFilled(slot.sg,slot.x,slot.y);
     slot.arrow.setVisible(false);
     this.filled++; this._updateProg();
@@ -627,14 +681,14 @@ class GameScene extends Phaser.Scene {
     if(this.filled===this.totalSlots) this.time.delayedCall(350,()=>this._win());
   }
 
-  _unpark(slot,p) {
+  _unpark(slot, p) {
     slot.car.destroy(); slot.car=null;
-    this.dragColor=slot.color; slot.filled=false; slot.color=0;
+    this.dragType=slot.type; slot.filled=false; slot.type=null;
     this.filled--;
     this._slotEmpty(slot.sg,slot.x,slot.y,slot.angle);
     slot.arrow.setVisible(true);
     this._updateProg();
-    this._grab(p,this.dragColor);
+    this._grab(p, this.dragType);
   }
 
   _updateProg(){this.progText.setText(`${this.filled} / ${this.totalSlots}`);}
