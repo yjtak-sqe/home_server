@@ -261,11 +261,74 @@ const CHARS = {
   'ㅣ': { path:[[0,0],[1,0],[2,0],[3,0],[4,0]], rows:5, cols:1 },
 };
 
-// CHARS에 없는 글자(완성형 음절 등)에 쓸 기본 주차장 레이아웃
+// CHARS에 없는 글자는 캔버스에 렌더링해서 픽셀 샘플로 주차 레이아웃 생성
 function getCharDef(ch) {
   if (CHARS[ch]) return CHARS[ch];
-  // 기본: 2×3 스네이크 6칸
-  return { path:[[0,0],[0,1],[0,2],[1,2],[1,1],[1,0]], rows:2, cols:3 };
+  return _sampleCharDef(ch);
+}
+
+function _sampleCharDef(ch) {
+  const GRID = 4, CELL = 40;
+  const canvas = document.createElement('canvas');
+  canvas.width = GRID * CELL; canvas.height = GRID * CELL;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#000';
+  ctx.font = `bold ${Math.round(GRID * CELL * 0.80)}px "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(ch, canvas.width / 2, canvas.height / 2);
+
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  const filled = [];
+  for (let r = 0; r < GRID; r++) {
+    for (let c = 0; c < GRID; c++) {
+      let dark = 0;
+      for (const [fx, fy] of [[0.25,0.25],[0.5,0.5],[0.75,0.75],[0.25,0.75],[0.75,0.25]]) {
+        const px = Math.round((c+fx)*CELL), py = Math.round((r+fy)*CELL);
+        if (data[(py*canvas.width+px)*4] < 140) dark++;
+      }
+      if (dark >= 2) filled.push([r, c]);
+    }
+  }
+  if (filled.length < 2) {
+    // 샘플링 실패 시 기본값
+    return { path:[[0,0],[0,1],[0,2],[1,2],[1,1],[1,0]], rows:2, cols:3 };
+  }
+  const path = _buildSnakePath(filled);
+  const rows = Math.max(...filled.map(([r])=>r)) + 1;
+  const cols = Math.max(...filled.map(([,c])=>c)) + 1;
+  return { path, rows, cols };
+}
+
+// 채워진 셀들을 탐욕적 최근접 이웃으로 순서화 (뱀 경로)
+function _buildSnakePath(cells) {
+  const set = new Set(cells.map(([r,c])=>`${r},${c}`));
+  const visited = new Set();
+  const sorted = cells.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  const path = [sorted[0]];
+  visited.add(`${sorted[0][0]},${sorted[0][1]}`);
+  while (path.length < cells.length) {
+    const [cr,cc] = path[path.length-1];
+    // 인접 셀 우선
+    let found = false;
+    for (const [nr,nc] of [[cr-1,cc],[cr,cc+1],[cr+1,cc],[cr,cc-1]]) {
+      const k=`${nr},${nc}`;
+      if (set.has(k)&&!visited.has(k)) { path.push([nr,nc]); visited.add(k); found=true; break; }
+    }
+    if (!found) {
+      // 가장 가까운 미방문 셀로 점프
+      let minD=Infinity, next=null;
+      for (const [r,c] of cells) {
+        if (!visited.has(`${r},${c}`)) {
+          const d=Math.abs(r-cr)+Math.abs(c-cc);
+          if (d<minD){minD=d;next=[r,c];}
+        }
+      }
+      if (!next) break;
+      path.push(next); visited.add(`${next[0]},${next[1]}`);
+    }
+  }
+  return path;
 }
 
 const CHAR_GROUPS = {
@@ -282,10 +345,9 @@ function cellAngle(path, i) {
     dR = path[i][0] - path[i-1][0];
     dC = path[i][1] - path[i-1][1];
   }
-  if (dC > 0) return 90;
-  if (dC < 0) return 270;
-  if (dR > 0) return 180;
-  return 0;
+  // 비인접 점프도 주요 방향으로 처리
+  if (Math.abs(dC) >= Math.abs(dR)) return dC >= 0 ? 90 : 270;
+  return dR > 0 ? 180 : 0;
 }
 
 function speak(text) {
@@ -575,15 +637,21 @@ class GameScene extends Phaser.Scene {
 
   _makePathLot({path, rows, cols}) {
     const pad = 18;
-    const lotW = cols*CS - GAP + pad*2;
-    const lotH = rows*CS - GAP + pad*2;
+    // 그리드가 크면 셀 크기를 자동으로 줄여서 화면에 맞춤
+    const BOX_AREA = 190;  // 장난감 통 폭 + 여백
+    const maxByW = Math.floor((W - BOX_AREA - 44*2 - pad*2) / cols);
+    const maxByH = Math.floor((H - 100 - pad*2) / rows);
+    const cs = Math.min(CS, maxByW, maxByH);
+
+    const lotW = cols*cs - GAP + pad*2;
+    const lotH = rows*cs - GAP + pad*2;
     const ox = 44, oy = Math.round((H - lotH)/2) + 12;
 
     const g = this.add.graphics();
     this._drawAsphalt(g, ox-pad, oy-pad, lotW, lotH);
 
     this.add.text(
-      ox + (cols*CS - GAP)/2, oy - pad - 2,
+      ox + (cols*cs - GAP)/2, oy - pad - 2,
       this.ch + '  🔊',
       {fontSize:'50px',fontFamily:'"Malgun Gothic",sans-serif',color:'#FFD700',stroke:'#1a1a00',strokeThickness:5}
     ).setOrigin(0.5,1).setInteractive({useHandCursor:true})
@@ -591,15 +659,16 @@ class GameScene extends Phaser.Scene {
 
     path.forEach(([row, col], idx) => {
       const angle = cellAngle(path, idx);
-      const cx = ox + col*CS + CS/2;
-      const cy = oy + row*CS + CS/2;
+      const cx = ox + col*cs + cs/2;
+      const cy = oy + row*cs + cs/2;
       const sg = this.add.graphics();
-      this._slotEmpty(sg, cx, cy, angle);
-      const arrow = this.add.text(cx, cy, '↑', {fontSize:'22px',color:'#ffffff',alpha:0.35})
+      this._slotEmptyCs(sg, cx, cy, angle, cs);
+      const arrow = this.add.text(cx, cy, '↑', {fontSize:`${Math.round(cs*0.24)}px`,color:'#ffffff',alpha:0.35})
         .setOrigin(0.5).setAngle(angle).setDepth(2);
-      this.slots.push({x:cx, y:cy, angle, filled:false, car:null, type:null, sg, arrow});
+      this.slots.push({x:cx, y:cy, angle, filled:false, car:null, type:null, sg, arrow, cs});
     });
     this.totalSlots = path.length;
+    this._lotCs = cs;
   }
 
   _makeCircleLot({count}) {
@@ -657,11 +726,12 @@ class GameScene extends Phaser.Scene {
     this.totalSlots = count;
   }
 
-  _slotEmpty(g, cx, cy, angle) {
+  _slotEmpty(g, cx, cy, angle, cs) { this._slotEmptyCs(g, cx, cy, angle, cs||CS); }
+  _slotEmptyCs(g, cx, cy, angle, cs) {
     g.clear();
     const isHoriz = (angle === 90 || angle === 270);
-    const sw = isHoriz ? CS : CS * 0.52;
-    const sh = isHoriz ? CS * 0.52 : CS;
+    const sw = isHoriz ? cs : cs * 0.52;
+    const sh = isHoriz ? cs * 0.52 : cs;
     const x = cx - sw/2, y = cy - sh/2;
     g.fillStyle(0x262626); g.fillRect(x, y, sw, sh);
     g.lineStyle(3, 0x0d0d0d, 0.9);
@@ -683,16 +753,17 @@ class GameScene extends Phaser.Scene {
     g.strokePath();
   }
 
-  _slotFilled(g, cx, cy) {
+  _slotFilled(g, cx, cy, cs) {
+    cs = cs || CS;
     g.clear();
     g.fillStyle(0x1a4a1a, 0.9);
-    g.fillRoundedRect(cx-CS*0.48, cy-CS*0.48, CS*0.96, CS*0.96, 7);
+    g.fillRoundedRect(cx-cs*0.48, cy-cs*0.48, cs*0.96, cs*0.96, 7);
     g.fillStyle(0x2e7d32, 0.7);
-    g.fillRoundedRect(cx-CS*0.42, cy-CS*0.42, CS*0.84, CS*0.84, 5);
+    g.fillRoundedRect(cx-cs*0.42, cy-cs*0.42, cs*0.84, cs*0.84, 5);
     g.lineStyle(2.5, 0x66BB6A, 0.9);
-    g.strokeRoundedRect(cx-CS*0.48, cy-CS*0.48, CS*0.96, CS*0.96, 7);
+    g.strokeRoundedRect(cx-cs*0.48, cy-cs*0.48, cs*0.96, cs*0.96, 7);
     g.lineStyle(1.5, 0xa5d6a7, 0.5);
-    g.strokeRoundedRect(cx-CS*0.42, cy-CS*0.42, CS*0.84, CS*0.84, 5);
+    g.strokeRoundedRect(cx-cs*0.42, cy-cs*0.42, cs*0.84, cs*0.84, 5);
   }
 
   _makeToyBox() {
@@ -780,11 +851,12 @@ class GameScene extends Phaser.Scene {
           });
           return;
         }
-        let best=null, bestD=90;
+        let best=null, bestD=Infinity;
         for(const s of this.slots){
           if(s.filled) continue;
           const d=Phaser.Math.Distance.Between(p.x,p.y,s.x,s.y);
-          if(d<bestD){bestD=d;best=s;}
+          const snapR=(s.cs||CS)*0.98;
+          if(d<snapR&&d<bestD){bestD=d;best=s;}
         }
         if(best){
           this._park(best);
@@ -818,7 +890,8 @@ class GameScene extends Phaser.Scene {
       }
       for(const s of this.slots){
         if(!s.filled) continue;
-        if(Math.abs(p.x-s.x)<CS/2+6&&Math.abs(p.y-s.y)<CS/2+6){
+        const r=(s.cs||CS)/2+6;
+        if(Math.abs(p.x-s.x)<r&&Math.abs(p.y-s.y)<r){
           this._unpark(s,p); return;
         }
       }
@@ -836,12 +909,14 @@ class GameScene extends Phaser.Scene {
 
   _park(slot) {
     const car=this.dragCar; this.dragCar=null;
-    car.setPosition(slot.x,slot.y).setScale(S_PARK).setAngle(slot.angle).setDepth(3);
-    slot.filled=true; slot.car=car; slot.type=this.dragType;
-    this._slotFilled(slot.sg,slot.x,slot.y);
+    const sc = slot.cs ? S_PARK * Math.min(1, slot.cs/CS) : S_PARK;
+    car.setPosition(slot.x,slot.y).setScale(sc).setAngle(slot.angle).setDepth(3);
+    slot.filled=true; slot.car=car; slot.type=this.dragType; slot._parkScale=sc;
+    this._slotFilled(slot.sg,slot.x,slot.y,slot.cs);
     slot.arrow.setVisible(false);
     this.filled++; this._updateProg();
-    this.tweens.add({targets:car,scaleX:S_PARK*1.12,scaleY:S_PARK*1.12,yoyo:true,duration:85,onComplete:()=>car.setScale(S_PARK)});
+    const sc2=slot._parkScale||S_PARK;
+    this.tweens.add({targets:car,scaleX:sc2*1.12,scaleY:sc2*1.12,yoyo:true,duration:85,onComplete:()=>car.setScale(sc2)});
     if(this.filled===this.totalSlots) this.time.delayedCall(350,()=>this._win());
   }
 
@@ -849,7 +924,7 @@ class GameScene extends Phaser.Scene {
     slot.car.destroy(); slot.car=null;
     this.dragType=slot.type; slot.filled=false; slot.type=null;
     this.filled--;
-    this._slotEmpty(slot.sg,slot.x,slot.y,slot.angle);
+    this._slotEmptyCs(slot.sg,slot.x,slot.y,slot.angle,slot.cs||CS);
     slot.arrow.setVisible(true);
     this._updateProg();
     this._grab(p, this.dragType);
