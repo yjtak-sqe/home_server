@@ -338,7 +338,7 @@ class GameScene extends Phaser.Scene {
   preload() { preloadCarTextures(this); }
 
   init({ch}) {
-    this.ch=ch; this.slots=[];
+    this.ch=ch; this.slots=[]; this.groundCars=[];
     this.filled=0; this.dragCar=null; this.dragType=null; this.won=false;
   }
 
@@ -631,13 +631,22 @@ class GameScene extends Phaser.Scene {
         if(best){
           this._park(best);
         } else {
-          // 슬롯 근처 아니면 박스로 반환
+          // 슬롯 근처 아니면 그 자리에 내려놓기 (다시 집을 수 있음)
           const car=this.dragCar; this.dragCar=null;
-          const bx=this.bx+this.bw/2, by=this.by+this.bh/2;
-          this.tweens.add({targets:car,x:bx,y:by,scaleX:0,scaleY:0,duration:220,ease:'Back.In',
-            onComplete:()=>car.destroy()});
+          car.setPosition(p.x,p.y).setScale(S_PARK).setAngle(90).setDepth(4);
+          this.groundCars.push({sprite:car, type:this.dragType});
         }
         return;
+      }
+
+      // ── 바닥에 내려놓은 차 클릭 → 다시 집기
+      for(let i=0;i<this.groundCars.length;i++){
+        const gc=this.groundCars[i];
+        if(Phaser.Math.Distance.Between(p.x,p.y,gc.sprite.x,gc.sprite.y)<44){
+          gc.sprite.destroy();
+          this.groundCars.splice(i,1);
+          this._grab(p,gc.type); return;
+        }
       }
 
       // ── 장난감 통 클릭 → 차 꺼내기
