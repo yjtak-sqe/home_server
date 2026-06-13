@@ -261,20 +261,24 @@ const CHARS = {
   'ㅣ': { path:[[0,0],[1,0],[2,0],[3,0],[4,0]], rows:5, cols:1 },
 };
 
-// CHARS에 없는 글자는 캔버스에 렌더링해서 픽셀 샘플로 주차 레이아웃 생성
+let wordCharDefs = null;  // 단어 모드: 미리 계산된 글자별 주차 레이아웃
+
+// CHARS에 없는 글자는 캔버스 픽셀 샘플링으로 레이아웃 생성
+// ※ 반드시 fonts.ready 이후에 호출해야 정확한 결과가 나옴
 function getCharDef(ch) {
   if (CHARS[ch]) return CHARS[ch];
   return _sampleCharDef(ch);
 }
 
 function _sampleCharDef(ch) {
-  const GRID = 4, CELL = 40;
+  const GRID = 6, CELL = 40;  // 6×6 그리드, 240×240 캔버스
   const canvas = document.createElement('canvas');
   canvas.width = GRID * CELL; canvas.height = GRID * CELL;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = '#000';
-  ctx.font = `bold ${Math.round(GRID * CELL * 0.80)}px "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif`;
+  // 폰트 크기: 캔버스의 88% — 한글 획이 셀 안에 고르게 분포되도록
+  ctx.font = `bold ${Math.round(GRID * CELL * 0.88)}px "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(ch, canvas.width / 2, canvas.height / 2);
 
@@ -282,16 +286,14 @@ function _sampleCharDef(ch) {
   const filled = [];
   for (let r = 0; r < GRID; r++) {
     for (let c = 0; c < GRID; c++) {
-      let dark = 0;
-      for (const [fx, fy] of [[0.25,0.25],[0.5,0.5],[0.75,0.75],[0.25,0.75],[0.75,0.25]]) {
-        const px = Math.round((c+fx)*CELL), py = Math.round((r+fy)*CELL);
-        if (data[(py*canvas.width+px)*4] < 140) dark++;
-      }
-      if (dark >= 2) filled.push([r, c]);
+      // 셀 중앙 한 점만 샘플 (threshold 128 이하 = 획)
+      const px = Math.round((c + 0.5) * CELL);
+      const py = Math.round((r + 0.5) * CELL);
+      const idx = (py * canvas.width + px) * 4;
+      if (data[idx] < 128) filled.push([r, c]);
     }
   }
   if (filled.length < 2) {
-    // 샘플링 실패 시 기본값
     return { path:[[0,0],[0,1],[0,2],[1,2],[1,1],[1,0]], rows:2, cols:3 };
   }
   const path = _buildSnakePath(filled);
@@ -369,16 +371,26 @@ function drawClouds(scene, positions) {
 function showWordUI() { document.getElementById('wordUI').style.display = ''; }
 function hideWordUI() { document.getElementById('wordUI').style.display = 'none'; }
 
-function startWordGame() {
+async function startWordGame() {
   const raw = document.getElementById('wordInput').value.trim();
   const errEl = document.getElementById('wordErr');
   if (!raw) { errEl.textContent = '글자를 입력해주세요'; errEl.style.display='inline'; return; }
   if ([...raw].length > 5) { errEl.textContent = '최대 5글자까지 가능해요'; errEl.style.display='inline'; return; }
   errEl.style.display = 'none';
-  currentWord = [...raw];  // 유니코드 글자 배열
+
+  const btn = document.getElementById('wordStartBtn');
+  btn.disabled = true; btn.textContent = '⏳ 로딩중...';
+
+  currentWord = [...raw];
   currentWordIdx = 0;
+
+  // 폰트 로딩 완료 후 글자별 주차 레이아웃을 미리 계산
+  await document.fonts.ready;
+  wordCharDefs = currentWord.map(ch => getCharDef(ch));
+
+  btn.disabled = false; btn.textContent = '🚗 시작!';
   hideWordUI();
-  // Phaser 씬 시작
+
   const game = window.__phaserGame;
   if (game) {
     game.scene.getScene('Menu').cameras.main.fadeOut(220);
@@ -399,7 +411,7 @@ class MenuScene extends Phaser.Scene {
   preload() { preloadCarTextures(this); }
 
   create() {
-    currentWord = null; currentWordIdx = 0;  // 단어 모드 초기화
+    currentWord = null; currentWordIdx = 0; wordCharDefs = null;
     showWordUI();
     this._drawBg();
     this._drawTitle();
@@ -630,7 +642,10 @@ class GameScene extends Phaser.Scene {
   }
 
   _makeLot() {
-    const def = getCharDef(this.ch);
+    // 단어 모드: 미리 계산된 레이아웃 사용 (fonts.ready 보장됨)
+    const def = (this.wordMode && wordCharDefs && wordCharDefs[currentWordIdx])
+      ? wordCharDefs[currentWordIdx]
+      : getCharDef(this.ch);
     if (def.type === 'circle') this._makeCircleLot(def);
     else this._makePathLot(def);
   }
@@ -649,6 +664,14 @@ class GameScene extends Phaser.Scene {
 
     const g = this.add.graphics();
     this._drawAsphalt(g, ox-pad, oy-pad, lotW, lotH);
+
+    // 글자 워터마크 (주차장 위에 희미하게 글자 표시)
+    const ghostSize = Math.min(lotW, lotH) * 0.78;
+    this.add.text(ox-pad + lotW/2, oy-pad + lotH/2, this.ch, {
+      fontSize: `${Math.round(ghostSize)}px`,
+      fontFamily: '"Malgun Gothic","Apple SD Gothic Neo",sans-serif',
+      color: '#ffffff',
+    }).setOrigin(0.5).setAlpha(0.07).setDepth(1);
 
     this.add.text(
       ox + (cols*cs - GAP)/2, oy - pad - 2,
