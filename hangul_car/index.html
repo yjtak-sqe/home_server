@@ -587,7 +587,7 @@ class GameScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     this.boxCars=[];
-    const count = this.totalSlots;
+    const count = Math.max(this.totalSlots + 3, 10);
     const sp = (this.bh-54) / count;
     const types = Phaser.Utils.Array.Shuffle([...CAR_TYPE_KEYS]);
     for(let i=0;i<count;i++){
@@ -619,16 +619,39 @@ class GameScene extends Phaser.Scene {
   _input() {
     this.input.on('pointerdown',(p)=>{
       if(this.won) return;
+
+      // ── 이미 차를 들고 있으면 → 클릭 위치 근처 슬롯에 주차 시도
+      if(this.dragCar){
+        let best=null, bestD=90;
+        for(const s of this.slots){
+          if(s.filled) continue;
+          const d=Phaser.Math.Distance.Between(p.x,p.y,s.x,s.y);
+          if(d<bestD){bestD=d;best=s;}
+        }
+        if(best){
+          this._park(best);
+        } else {
+          // 슬롯 근처 아니면 계속 들고 다님 (아무것도 안 함)
+        }
+        return;
+      }
+
+      // ── 장난감 통 클릭 → 차 꺼내기
       if(p.x>=this.bx&&p.x<=this.bx+this.bw&&p.y>=this.by&&p.y<=this.by+this.bh){
-        let best=this.boxCars[0],bestD=Infinity;
+        if(this.boxCars.length===0) return;  // 박스 비었으면 무시
+        let best=null, bestD=Infinity;
         for(const bc of this.boxCars){
           const d=Phaser.Math.Distance.Between(p.x,p.y,bc.x,bc.y);
           if(d<bestD){bestD=d;best=bc;}
         }
+        if(!best) return;
         best.sprite.destroy();
-        this.boxCars = this.boxCars.filter(bc => bc !== best);
-        this._grab(p, best.type); return;
+        this.boxCars=this.boxCars.filter(bc=>bc!==best);
+        this._grab(p,best.type);
+        return;
       }
+
+      // ── 주차된 차 클릭 → 다시 집기
       for(const s of this.slots){
         if(!s.filled) continue;
         if(Math.abs(p.x-s.x)<CS/2+6&&Math.abs(p.y-s.y)<CS/2+6){
@@ -637,31 +660,9 @@ class GameScene extends Phaser.Scene {
       }
     });
 
-    // 드래그 중 주차 칸 근처에 오면 자동 주차
-    const snapDist = SVG_H * S_PARK * 0.52; // ~51 px
+    // 차 이동 (자동 스냅 없이 커서만 따라다님)
     this.input.on('pointermove',(p)=>{
-      if(!this.dragCar) return;
-      this.dragCar.setPosition(p.x,p.y);
-      let best=null,bestD=snapDist;
-      for(const s of this.slots){
-        if(s.filled) continue;
-        const d=Phaser.Math.Distance.Between(p.x,p.y,s.x,s.y);
-        if(d<bestD){bestD=d;best=s;}
-      }
-      if(best) this._park(best);
-    });
-
-    this.input.on('pointerup',(p)=>{
-      if(!this.dragCar) return;
-      // 손을 뗄 때도 가까운 슬롯 있으면 주차
-      let best=null,bestD=72;
-      for(const s of this.slots){
-        if(s.filled) continue;
-        const d=Phaser.Math.Distance.Between(p.x,p.y,s.x,s.y);
-        if(d<bestD){bestD=d;best=s;}
-      }
-      if(best) this._park(best);
-      // 슬롯 없으면 dragCar 유지 → 계속 드래그
+      if(this.dragCar) this.dragCar.setPosition(p.x,p.y);
     });
   }
 
