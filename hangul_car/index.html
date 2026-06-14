@@ -583,13 +583,26 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') startWordGame();
   });
 
-  // wordUI 클릭이 Phaser 캔버스로 관통되지 않도록 차단 (버블 단계 - 자식 버튼이 먼저 이벤트 수신)
   const wordUI = document.getElementById('wordUI');
+
+  // wordUI 내 클릭 시: Phaser 입력을 즉시 차단(캡처)하고 버블 전파도 차단
+  function blockPhaserBriefly() {
+    const scene = window.__phaserGame?.scene?.getScene('Menu');
+    if (scene?.input) scene.input.enabled = false;
+    setTimeout(() => {
+      const s = window.__phaserGame?.scene?.getScene('Menu');
+      if (s?.input) s.input.enabled = true;
+    }, 300);
+  }
+  wordUI.addEventListener('mousedown',  blockPhaserBriefly, true);  // 캡처: Phaser보다 먼저
+  wordUI.addEventListener('touchstart', blockPhaserBriefly, { capture: true, passive: true });
+
+  // 버블 단계에서도 전파 차단 (window 레벨 Phaser 리스너 방어)
   wordUI.addEventListener('pointerdown', e => e.stopPropagation());
   wordUI.addEventListener('mousedown',   e => e.stopPropagation());
-  wordUI.addEventListener('touchstart',  e => e.stopPropagation());
+  wordUI.addEventListener('touchstart',  e => e.stopPropagation(), { passive: false });
 
-  // input 포커스 중 Phaser 입력 비활성화
+  // input 포커스/블러 시 Phaser 입력 제어
   wordInput.addEventListener('focus', () => {
     const scene = window.__phaserGame?.scene?.getScene('Menu');
     if (scene?.input) scene.input.enabled = false;
