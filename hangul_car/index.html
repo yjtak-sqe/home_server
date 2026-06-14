@@ -30,14 +30,20 @@ body { background: #1a237e; display: flex; justify-content: center; align-items:
   transition: background 0.15s;
 }
 #wordStartBtn:hover { background: #1976D2; }
+#wordCloseBtn {
+  padding: 4px 10px; border-radius: 7px; border: none;
+  background: #555; color: #fff; font-size: 14px; cursor: pointer;
+}
+#wordCloseBtn:hover { background: #777; }
 #wordErr { color: #ff8080; font-size: 12px; display: none; }
 </style>
 </head>
 <body>
-<div id="wordUI">
+<div id="wordUI" style="display:none">
   <label>단어 주차장:</label>
   <input id="wordInput" maxlength="5" placeholder="예) 사랑해" autocomplete="off" spellcheck="false">
   <button id="wordStartBtn">🚗 시작!</button>
+  <button id="wordCloseBtn">✕</button>
   <span id="wordErr"></span>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
@@ -553,8 +559,20 @@ function drawClouds(scene, positions) {
 }
 
 // ── 단어 입력 UI 핸들러 ──────────────────────────────────────────────────
-function showWordUI() { document.getElementById('wordUI').style.display = ''; }
-function hideWordUI() { document.getElementById('wordUI').style.display = 'none'; }
+function setPhaserMenuInput(enabled) {
+  const scene = window.__phaserGame?.scene?.getScene('Menu');
+  if (scene?.input) scene.input.enabled = enabled;
+}
+function showWordUI() {
+  document.getElementById('wordUI').style.display = '';
+  document.getElementById('wordInput').value = '';
+  document.getElementById('wordErr').style.display = 'none';
+  setPhaserMenuInput(false);   // Phaser 메뉴 입력 차단
+}
+function hideWordUI() {
+  document.getElementById('wordUI').style.display = 'none';
+  setPhaserMenuInput(true);    // Phaser 메뉴 입력 복원
+}
 
 function startWordGame() {
   const raw = document.getElementById('wordInput').value.trim();
@@ -577,39 +595,12 @@ function startWordGame() {
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('wordStartBtn').addEventListener('click', startWordGame);
+  document.getElementById('wordCloseBtn').addEventListener('click', hideWordUI);
 
   const wordInput = document.getElementById('wordInput');
   wordInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') startWordGame();
-  });
-
-  const wordUI = document.getElementById('wordUI');
-
-  // wordUI 내 클릭 시: Phaser 입력을 즉시 차단(캡처)하고 버블 전파도 차단
-  function blockPhaserBriefly() {
-    const scene = window.__phaserGame?.scene?.getScene('Menu');
-    if (scene?.input) scene.input.enabled = false;
-    setTimeout(() => {
-      const s = window.__phaserGame?.scene?.getScene('Menu');
-      if (s?.input) s.input.enabled = true;
-    }, 300);
-  }
-  wordUI.addEventListener('mousedown',  blockPhaserBriefly, true);  // 캡처: Phaser보다 먼저
-  wordUI.addEventListener('touchstart', blockPhaserBriefly, { capture: true, passive: true });
-
-  // 버블 단계에서도 전파 차단 (window 레벨 Phaser 리스너 방어)
-  wordUI.addEventListener('pointerdown', e => e.stopPropagation());
-  wordUI.addEventListener('mousedown',   e => e.stopPropagation());
-  wordUI.addEventListener('touchstart',  e => e.stopPropagation(), { passive: false });
-
-  // input 포커스/블러 시 Phaser 입력 제어
-  wordInput.addEventListener('focus', () => {
-    const scene = window.__phaserGame?.scene?.getScene('Menu');
-    if (scene?.input) scene.input.enabled = false;
-  });
-  wordInput.addEventListener('blur', () => {
-    const scene = window.__phaserGame?.scene?.getScene('Menu');
-    if (scene?.input) scene.input.enabled = true;
+    if (e.key === 'Escape') hideWordUI();
   });
 });
 
@@ -620,7 +611,7 @@ class MenuScene extends Phaser.Scene {
 
   create() {
     currentWord = null; currentWordIdx = 0; wordCharDefs = null;
-    showWordUI();
+    hideWordUI();   // 메뉴 진입 시 wordUI 숨김 (Phaser 입력 활성)
     this._drawBg();
     this._drawTitle();
     this._drawBgSelector();
@@ -670,6 +661,13 @@ class MenuScene extends Phaser.Scene {
     this.add.text(W/2,104,'배울 글자를 골라보세요!',{
       fontSize:'18px',fontFamily:'"Malgun Gothic",sans-serif',color:subColor,
     }).setOrigin(0.5);
+
+    // 단어 주차장 버튼
+    const wbg = this.add.rectangle(W-80, 104, 130, 30, 0x1565C0, 0.9).setInteractive({useHandCursor:true});
+    this.add.text(W-80, 104, '📝 단어 주차장', {fontSize:'13px',fontFamily:'"Malgun Gothic",sans-serif',color:'#fff'}).setOrigin(0.5);
+    wbg.on('pointerdown', () => showWordUI());
+    wbg.on('pointerover', () => wbg.setFillStyle(0x1976D2, 0.95));
+    wbg.on('pointerout',  () => wbg.setFillStyle(0x1565C0, 0.9));
   }
 
   _drawBgSelector() {
