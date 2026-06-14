@@ -537,12 +537,37 @@ function cellAngle(path, i) {
   return dR > 0 ? 180 : 0;
 }
 
-function speak(text) {
+// MeloTTS 서버 (docker tts-server, 포트 8093). 게임과 같은 호스트로 가정.
+const TTS_URL = `${location.protocol}//${location.hostname}:8093/tts`;
+const _ttsCache = {};          // text → object URL (blob)
+let _ttsAudio = null;
+
+function _browserSpeak(text) {  // 서버 실패 시 폴백
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.lang='ko-KR'; u.rate=0.75; u.pitch=1.3;
   window.speechSynthesis.speak(u);
+}
+
+async function speak(text) {
+  try {
+    let url = _ttsCache[text];
+    if (!url) {
+      const res = await fetch(TTS_URL, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) throw new Error('tts '+res.status);
+      url = URL.createObjectURL(await res.blob());
+      _ttsCache[text] = url;
+    }
+    if (_ttsAudio) { _ttsAudio.pause(); }
+    _ttsAudio = new Audio(url);
+    _ttsAudio.play();
+  } catch (e) {
+    _browserSpeak(text);   // 서버 미동작 시 브라우저 내장 TTS
+  }
 }
 
 function drawClouds(scene, positions) {

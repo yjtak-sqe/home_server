@@ -189,6 +189,18 @@ services:
     ports:
       - "8092:80"
 
+  # ──────────────────────────────────────────
+  # 한국어 TTS 서버 — MeloTTS (hangul-car 게임 음성)
+  # 접속: http://서버IP:8093/tts  (POST {"text":"..."} → WAV)
+  # ──────────────────────────────────────────
+  tts-server:
+    build: ./tts_server
+    image: tts-server:latest
+    container_name: tts-server
+    restart: unless-stopped
+    ports:
+      - "8093:8000"
+
   upbit-trader:
     build: ./upbit_trader
     image: upbit-trader:latest
