@@ -570,11 +570,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') startWordGame();
   });
 
-  // wordUI 클릭이 Phaser 캔버스로 관통되지 않도록 차단
+  // wordUI 클릭이 Phaser 캔버스로 관통되지 않도록 차단 (버블 단계 - 자식 버튼이 먼저 이벤트 수신)
   const wordUI = document.getElementById('wordUI');
-  wordUI.addEventListener('pointerdown', e => e.stopPropagation(), true);
-  wordUI.addEventListener('mousedown',   e => e.stopPropagation(), true);
-  wordUI.addEventListener('touchstart',  e => e.stopPropagation(), true);
+  wordUI.addEventListener('pointerdown', e => e.stopPropagation());
+  wordUI.addEventListener('mousedown',   e => e.stopPropagation());
+  wordUI.addEventListener('touchstart',  e => e.stopPropagation());
 
   // input 포커스 중 Phaser 입력 비활성화
   wordInput.addEventListener('focus', () => {
