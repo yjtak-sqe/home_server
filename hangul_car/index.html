@@ -538,6 +538,27 @@ function cellAngle(path, i) {
   return dR > 0 ? 180 : 0;
 }
 
+// 배경음악
+const BGM = {
+  'ㄱ': ['music/기역송_1.mp3', 'music/기역송_2.mp3'],
+};
+let _bgmAudio = null;
+
+function playBgm(ch) {
+  stopBgm();
+  const tracks = BGM[ch];
+  if (!tracks) return;
+  const src = tracks[Math.floor(Math.random() * tracks.length)];
+  _bgmAudio = new Audio(src);
+  _bgmAudio.loop = true;
+  _bgmAudio.volume = 0.4;
+  _bgmAudio.play().catch(() => {});
+}
+
+function stopBgm() {
+  if (_bgmAudio) { _bgmAudio.pause(); _bgmAudio = null; }
+}
+
 // MeloTTS 서버 (docker tts-server, 포트 8093). 게임과 같은 호스트로 가정.
 const TTS_URL = `${location.protocol}//${location.hostname}:8093/tts`;
 const _ttsCache = {};          // text → object URL (blob)
@@ -800,6 +821,8 @@ class GameScene extends Phaser.Scene {
     this._makeUI();
     this._input();
     this.cameras.main.fadeIn(300);
+    playBgm(this.ch);
+    this.events.once('shutdown', stopBgm);
   }
 
   _bg() {
