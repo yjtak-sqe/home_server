@@ -934,7 +934,7 @@ class GameScene extends Phaser.Scene {
   }
 
   _makeCircleLot({count}) {
-    const carLen = SVG_H * S_PARK;
+    const carLen = CS * 0.94;  // slot height, not car size
     const R = Math.round(count * carLen / (2 * Math.PI));
     const cx = Math.round(W * 0.37), cy = Math.round(H / 2) + 8;
     const outerR = R + CS * 0.58;
