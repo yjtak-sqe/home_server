@@ -542,6 +542,15 @@ const TTS_URL = `${location.protocol}//${location.hostname}:8093/tts`;
 const _ttsCache = {};          // text → object URL (blob)
 let _ttsAudio = null;
 
+// MeloTTS 한국어는 완성 음절만 발음 가능 → 낱자(자음/모음)는 발음 이름으로 변환
+const _JAMO_SAY = {
+  'ㄱ':'기역','ㄴ':'니은','ㄷ':'디귿','ㄹ':'리을','ㅁ':'미음','ㅂ':'비읍',
+  'ㅅ':'시옷','ㅇ':'이응','ㅈ':'지읒','ㅊ':'치읓','ㅋ':'키읔','ㅌ':'티읕',
+  'ㅍ':'피읖','ㅎ':'히읗',
+  'ㅏ':'아','ㅑ':'야','ㅓ':'어','ㅕ':'여','ㅗ':'오','ㅛ':'요',
+  'ㅜ':'우','ㅠ':'유','ㅡ':'으','ㅣ':'이',
+};
+
 function _browserSpeak(text) {  // 서버 실패 시 폴백
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
@@ -550,7 +559,8 @@ function _browserSpeak(text) {  // 서버 실패 시 폴백
   window.speechSynthesis.speak(u);
 }
 
-async function speak(text) {
+async function speak(rawText) {
+  const text = _JAMO_SAY[rawText] || rawText;
   try {
     let url = _ttsCache[text];
     if (!url) {
