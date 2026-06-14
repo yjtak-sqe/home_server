@@ -8,42 +8,36 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: #1a237e; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
 #wordUI {
-  position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 8px;
-  background: rgba(10,15,50,0.88); border: 2px solid #4A80C0;
-  border-radius: 12px; padding: 8px 16px;
-  box-shadow: 0 4px 18px rgba(0,0,0,0.5);
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -30%);
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  background: rgba(10,15,50,0.95); border: 3px solid #4A80C0;
+  border-radius: 18px; padding: 32px 40px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.6);
   z-index: 9999; font-family: "Malgun Gothic", sans-serif;
 }
-#wordUI label { color: #aaddff; font-size: 14px; white-space: nowrap; }
+#wordUI label { color: #aaddff; font-size: 20px; white-space: nowrap; font-weight: bold; }
 #wordInput {
-  width: 130px; padding: 5px 10px; border-radius: 7px;
-  border: 1.5px solid #4A80C0; background: #0a1230;
-  color: #fff; font-size: 18px; font-family: "Malgun Gothic", sans-serif;
-  outline: none; letter-spacing: 4px; text-align: center;
+  width: 220px; padding: 10px 14px; border-radius: 9px;
+  border: 2px solid #4A80C0; background: #0a1230;
+  color: #fff; font-size: 26px; font-family: "Malgun Gothic", sans-serif;
+  outline: none; letter-spacing: 6px; text-align: center;
 }
-#wordInput:focus { border-color: #64B5F6; box-shadow: 0 0 6px #64B5F690; }
+#wordInput:focus { border-color: #64B5F6; box-shadow: 0 0 8px #64B5F690; }
 #wordStartBtn {
-  padding: 6px 16px; border-radius: 7px; border: none;
-  background: #1565C0; color: #fff; font-size: 14px;
+  padding: 12px 40px; border-radius: 9px; border: none;
+  background: #1565C0; color: #fff; font-size: 19px;
   font-family: "Malgun Gothic", sans-serif; cursor: pointer;
   transition: background 0.15s;
 }
 #wordStartBtn:hover { background: #1976D2; }
-#wordCloseBtn {
-  padding: 4px 10px; border-radius: 7px; border: none;
-  background: #555; color: #fff; font-size: 14px; cursor: pointer;
-}
-#wordCloseBtn:hover { background: #777; }
-#wordErr { color: #ff8080; font-size: 12px; display: none; }
+#wordErr { color: #ff8080; font-size: 14px; display: none; min-height: 14px; }
 </style>
 </head>
 <body>
 <div id="wordUI" style="display:none">
-  <label>단어 주차장:</label>
+  <label>📝 만들고 싶은 단어를 입력하세요</label>
   <input id="wordInput" maxlength="5" placeholder="예) 사랑해" autocomplete="off" spellcheck="false">
-  <button id="wordStartBtn">🚗 시작!</button>
-  <button id="wordCloseBtn">✕</button>
+  <button id="wordStartBtn">🚗 주차장 만들기!</button>
   <span id="wordErr"></span>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
@@ -559,19 +553,14 @@ function drawClouds(scene, positions) {
 }
 
 // ── 단어 입력 UI 핸들러 ──────────────────────────────────────────────────
-function setPhaserMenuInput(enabled) {
-  const scene = window.__phaserGame?.scene?.getScene('Menu');
-  if (scene?.input) scene.input.enabled = enabled;
-}
+// 단어 탭에서만 표시. 이 화면에선 Phaser 카드를 그리지 않으므로 클릭 충돌 없음.
 function showWordUI() {
   document.getElementById('wordUI').style.display = '';
-  document.getElementById('wordInput').value = '';
   document.getElementById('wordErr').style.display = 'none';
-  setPhaserMenuInput(false);   // Phaser 메뉴 입력 차단
+  document.getElementById('wordInput').focus();
 }
 function hideWordUI() {
   document.getElementById('wordUI').style.display = 'none';
-  setPhaserMenuInput(true);    // Phaser 메뉴 입력 복원
 }
 
 function startWordGame() {
@@ -595,12 +584,10 @@ function startWordGame() {
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('wordStartBtn').addEventListener('click', startWordGame);
-  document.getElementById('wordCloseBtn').addEventListener('click', hideWordUI);
 
   const wordInput = document.getElementById('wordInput');
   wordInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') startWordGame();
-    if (e.key === 'Escape') hideWordUI();
   });
 });
 
@@ -661,13 +648,6 @@ class MenuScene extends Phaser.Scene {
     this.add.text(W/2,104,'배울 글자를 골라보세요!',{
       fontSize:'18px',fontFamily:'"Malgun Gothic",sans-serif',color:subColor,
     }).setOrigin(0.5);
-
-    // 단어 주차장 버튼
-    const wbg = this.add.rectangle(W-80, 104, 130, 30, 0x1565C0, 0.9).setInteractive({useHandCursor:true});
-    this.add.text(W-80, 104, '📝 단어 주차장', {fontSize:'13px',fontFamily:'"Malgun Gothic",sans-serif',color:'#fff'}).setOrigin(0.5);
-    wbg.on('pointerdown', () => showWordUI());
-    wbg.on('pointerover', () => wbg.setFillStyle(0x1976D2, 0.95));
-    wbg.on('pointerout',  () => wbg.setFillStyle(0x1565C0, 0.9));
   }
 
   _drawBgSelector() {
@@ -691,7 +671,7 @@ class MenuScene extends Phaser.Scene {
   }
 
   _drawTabs() {
-    const tabs = ['자음','모음'];
+    const tabs = ['자음','모음','단어'];
     const tw=110, th=36, gap=8;
     const totalTW = tabs.length*(tw+gap)-gap;
     const startX = (W-totalTW)/2;
@@ -702,7 +682,7 @@ class MenuScene extends Phaser.Scene {
         isActive ? 0x1565C0 : 0x000000, isActive ? 0.88 : 0.35)
         .setStrokeStyle(2, isActive ? 0x64B5F6 : 0x666666)
         .setInteractive({useHandCursor:true});
-      this.add.text(tx+tw/2, 132, tab+(tab==='자음'?' (14)':' (10)'), {
+      this.add.text(tx+tw/2, 132, tab+(tab==='자음'?' (14)':tab==='모음'?' (10)':''), {
         fontSize:'15px', fontFamily:'"Malgun Gothic",sans-serif',
         color: isActive ? '#fff' : '#aaa',
       }).setOrigin(0.5).setDepth(1);
@@ -713,6 +693,9 @@ class MenuScene extends Phaser.Scene {
   }
 
   _drawCards() {
+    // 단어 탭: 카드 대신 HTML 입력 UI 표시 (카드를 안 그리므로 클릭 충돌 없음)
+    if (currentTab === '단어') { showWordUI(); return; }
+    hideWordUI();
     const list = CHAR_GROUPS[currentTab];
     const cardW=110, cardH=112, spacingX=22, spacingY=18;
     const perRow=5;
