@@ -415,13 +415,26 @@ const _JONG_NORM = {'ㄲ':'ㄱ','ㄳ':'ㄱ','ㄵ':'ㄴ','ㄶ':'ㄴ',
                     'ㅄ':'ㅂ','ㅆ':'ㅅ'};
 const _HORIZ_V   = new Set(['ㅗ','ㅛ','ㅜ','ㅠ','ㅡ']);
 
-// 자모 하나의 주차 레이아웃 (원 타입은 작은 사각형으로 대체)
+// 자모 하나의 주차 레이아웃 (원/strokes 타입은 path 기반으로 변환)
 function _jamoDef(ch) {
   if (!ch) return { path:[[0,0]], rows:1, cols:1 };
   const key = _CHO_NORM[ch] || ch;
   const d = CHARS[key];
   if (!d) return { path:[[0,0],[0,1],[0,2]], rows:1, cols:3 };
   if (d.type === 'circle') return { path:[[0,0],[0,1],[1,1],[1,0]], rows:2, cols:2 };
+  if (d.type === 'strokes') {
+    const seen = new Map();
+    d.strokes.forEach(({from, to, n}) => {
+      const count = n || 4;
+      for (let i = 0; i < count; i++) {
+        const t = count === 1 ? 0.5 : i / (count - 1);
+        const r = Math.round(from[0] + (to[0] - from[0]) * t);
+        const c = Math.round(from[1] + (to[1] - from[1]) * t);
+        seen.set(`${r},${c}`, [r, c]);
+      }
+    });
+    return { path: [...seen.values()], rows: d.rows, cols: d.cols };
+  }
   return d;
 }
 
