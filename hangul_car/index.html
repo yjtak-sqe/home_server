@@ -1008,14 +1008,16 @@ class GameScene extends Phaser.Scene {
   _slotFilled(g, cx, cy, cs) {
     cs = cs || CS;
     g.clear();
+    g.setPosition(cx, cy);
+    g.setAngle(0);
     g.fillStyle(0x1a4a1a, 0.9);
-    g.fillRoundedRect(cx-cs*0.48, cy-cs*0.48, cs*0.96, cs*0.96, 7);
+    g.fillRoundedRect(-cs*0.48, -cs*0.48, cs*0.96, cs*0.96, 7);
     g.fillStyle(0x2e7d32, 0.7);
-    g.fillRoundedRect(cx-cs*0.42, cy-cs*0.42, cs*0.84, cs*0.84, 5);
+    g.fillRoundedRect(-cs*0.42, -cs*0.42, cs*0.84, cs*0.84, 5);
     g.lineStyle(2.5, 0x66BB6A, 0.9);
-    g.strokeRoundedRect(cx-cs*0.48, cy-cs*0.48, cs*0.96, cs*0.96, 7);
+    g.strokeRoundedRect(-cs*0.48, -cs*0.48, cs*0.96, cs*0.96, 7);
     g.lineStyle(1.5, 0xa5d6a7, 0.5);
-    g.strokeRoundedRect(cx-cs*0.42, cy-cs*0.42, cs*0.84, cs*0.84, 5);
+    g.strokeRoundedRect(-cs*0.42, -cs*0.42, cs*0.84, cs*0.84, 5);
   }
 
   _makeToyBox() {
