@@ -715,7 +715,10 @@ class MenuScene extends Phaser.Scene {
       this.add.text(cx,cy-12,ch,{
         fontSize:'62px',fontFamily:'"Malgun Gothic",sans-serif',color:textColor,
       }).setOrigin(0.5);
-      const cnt = CHARS[ch].type==='circle' ? CHARS[ch].count : CHARS[ch].path.length;
+      const def0 = CHARS[ch];
+      const cnt = def0.type==='circle' ? def0.count
+                : def0.type==='strokes' ? def0.strokes.reduce((s,k)=>s+(k.n||4),0)
+                : def0.path.length;
       this.add.text(cx,cy+44,`🚗 ${cnt}대`,{
         fontSize:'12px',fontFamily:'"Malgun Gothic",sans-serif',color:subColor,
       }).setOrigin(0.5);
@@ -910,8 +913,8 @@ class GameScene extends Phaser.Scene {
       for(let i=0;i<count;i++){
         const t=count===1?0.5:i/(count-1);
         const r=r0+dr*t, c=c0+dc*t;
-        const cx=ox+c*cs+cs/2-pad;
-        const cy=oy+r*cs+cs/2-pad;
+        const cx=ox+c*cs+cs/2;
+        const cy=oy+r*cs+cs/2;
         const sg=this.add.graphics();
         this._slotEmptyCs(sg,cx,cy,angle,cs);
         const arrow=this.add.text(cx,cy,'↑',{fontSize:`${Math.round(cs*0.24)}px`,color:'#ffffff',alpha:0.35})
