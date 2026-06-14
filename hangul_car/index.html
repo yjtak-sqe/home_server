@@ -276,29 +276,25 @@ const CHARS = {
   // X X X
   'ㅂ': { path:[[0,0],[1,0],[2,0],[3,0],[3,1],[3,2],[2,2],[2,1],[1,1],[1,2],[0,2]], rows:4, cols:3 },
 
-  // ㅅ: 중앙 상단에서 양쪽으로 퍼지는 V (10칸, 4×4)
-  // . X X .
-  // X X X X
-  // X . . X
-  // X . . X
-  'ㅅ': { path:[[0,1],[0,2],[1,2],[1,3],[2,3],[3,3],[3,0],[2,0],[1,0],[1,1]], rows:4, cols:4 },
+  // ㅅ: 중앙 상단에서 좌하/우하로 뻗는 두 대각선 획
+  'ㅅ': { type:'strokes', strokes:[
+    {from:[0,2.5], to:[3.5,0],   n:5},
+    {from:[0,2.5], to:[3.5,5],   n:5},
+  ], rows:4, cols:5 },
 
   'ㅇ': { type:'circle', count:10 },
 
-  // ㅈ: 위 가로 + 오른→왼 꺾이는 획 (9칸, 4×4)
-  // X X X X
-  // . X X X
-  // . X . .
-  // X . . .
-  'ㅈ': { path:[[0,0],[0,1],[0,2],[0,3],[1,3],[1,2],[1,1],[2,1],[3,0]], rows:4, cols:4 },
-
-  // ㅊ: 위 점 + ㅈ (10칸, 5×4)
-  // . . X .
-  // X X X X
-  // . X X X
-  // . X . .
-  // X . . .
-  'ㅊ': { path:[[0,2],[1,2],[1,1],[1,0],[1,3],[2,3],[2,2],[2,1],[3,1],[4,0]], rows:5, cols:4 },
+  // ㅈ: 위 가로획 + 우상에서 좌하로 내려오는 대각선 획
+  'ㅈ': { type:'strokes', strokes:[
+    {from:[0,0],   to:[0,4.5],   n:6},
+    {from:[0,4.5], to:[3.5,0.5], n:6},
+  ], rows:4, cols:5 },
+  // ㅊ: 위 짧은 가로 + 가로획 + 대각선 획
+  'ㅊ': { type:'strokes', strokes:[
+    {from:[0,1.5], to:[0,3],     n:2},
+    {from:[1,0],   to:[1,4.5],   n:6},
+    {from:[1,4.5], to:[4.5,0.5], n:6},
+  ], rows:5, cols:5 },
 
   // ㅋ: ㄱ + 중간 짧은 가로 (9칸, 4×4)
   // X X X X
@@ -828,6 +824,7 @@ class GameScene extends Phaser.Scene {
       ? wordCharDefs[currentWordIdx]
       : getCharDef(this.ch);
     if (def.type === 'circle') this._makeCircleLot(def);
+    else if (def.type === 'strokes') this._makeStrokeLot(def);
     else this._makePathLot(def);
   }
 
@@ -873,6 +870,57 @@ class GameScene extends Phaser.Scene {
     });
     this.totalSlots = path.length;
     this._lotCs = cs;
+  }
+
+  _makeStrokeLot({strokes, rows, cols}) {
+    const pad = 18;
+    const BOX_AREA = 190;
+    const maxByW = Math.floor((W - BOX_AREA - 44*2 - pad*2) / cols);
+    const maxByH = Math.floor((H - 100 - pad*2) / rows);
+    const cs = Math.min(CS, maxByW, maxByH);
+    const lotW = cols*cs + pad*2;
+    const lotH = rows*cs + pad*2;
+    const ox = 44, oy = Math.round((H - lotH)/2) + 12;
+
+    const g = this.add.graphics();
+    this._drawAsphalt(g, ox-pad, oy-pad, lotW, lotH);
+
+    const ghostSize = Math.min(lotW, lotH) * 0.78;
+    this.add.text(ox + lotW/2 - pad, oy + lotH/2 - pad, this.ch, {
+      fontSize: `${Math.round(ghostSize)}px`,
+      fontFamily: '"Malgun Gothic","Apple SD Gothic Neo",sans-serif',
+      color: '#ffffff',
+    }).setOrigin(0.5).setAlpha(0.07).setDepth(1);
+
+    this.add.text(
+      ox + (cols*cs)/2, oy - pad - 2,
+      this.ch + '  🔊',
+      {fontSize:'50px',fontFamily:'"Malgun Gothic",sans-serif',color:'#FFD700',stroke:'#1a1a00',strokeThickness:5}
+    ).setOrigin(0.5,1).setInteractive({useHandCursor:true})
+     .on('pointerdown',()=>speak(this.ch));
+
+    strokes.forEach(({from, to, n}) => {
+      const [r0,c0]=from, [r1,c1]=to;
+      const dr=r1-r0, dc=c1-c0;
+      const count=n||Math.max(2,Math.round(Math.sqrt(dr*dr+dc*dc)*1.8));
+      // Phaser 각도: 0°=위, 90°=오른쪽. 획 방향 (dc,dr) → atan2(dc,-dr)
+      const rawAngle=Math.atan2(dc,-dr)*180/Math.PI;
+      const angle=Math.round(rawAngle/45)*45;
+
+      for(let i=0;i<count;i++){
+        const t=count===1?0.5:i/(count-1);
+        const r=r0+dr*t, c=c0+dc*t;
+        const cx=ox+c*cs+cs/2-pad;
+        const cy=oy+r*cs+cs/2-pad;
+        const sg=this.add.graphics();
+        this._slotEmptyCs(sg,cx,cy,angle,cs);
+        const arrow=this.add.text(cx,cy,'↑',{fontSize:`${Math.round(cs*0.24)}px`,color:'#ffffff',alpha:0.35})
+          .setOrigin(0.5).setAngle(angle).setDepth(2);
+        this.slots.push({x:cx,y:cy,angle,filled:false,car:null,type:null,sg,arrow,cs});
+      }
+    });
+    this.totalSlots=this.slots.length;
+    this._lotCs=cs;
   }
 
   _makeCircleLot({count}) {
@@ -933,28 +981,21 @@ class GameScene extends Phaser.Scene {
   _slotEmpty(g, cx, cy, angle, cs) { this._slotEmptyCs(g, cx, cy, angle, cs||CS); }
   _slotEmptyCs(g, cx, cy, angle, cs) {
     g.clear();
-    const isHoriz = (angle === 90 || angle === 270);
-    const sw = isHoriz ? cs : cs * 0.52;
-    const sh = isHoriz ? cs * 0.52 : cs;
-    const x = cx - sw/2, y = cy - sh/2;
+    g.setPosition(cx, cy);
+    g.setAngle(angle);
+    // 항상 세로형(tall)으로 그리고 회전 → 0°=위, 90°=오른쪽, 135°=우하 대각선 등 모두 지원
+    const sw = cs * 0.52, sh = cs * 0.94;
+    const x = -sw/2, y = -sh/2;
     g.fillStyle(0x262626); g.fillRect(x, y, sw, sh);
     g.lineStyle(3, 0x0d0d0d, 0.9);
     g.beginPath(); g.moveTo(x,y+sh); g.lineTo(x,y); g.lineTo(x+sw,y); g.strokePath();
     g.lineStyle(2, 0x484848, 0.7);
     g.beginPath(); g.moveTo(x+sw,y); g.lineTo(x+sw,y+sh); g.lineTo(x,y+sh); g.strokePath();
     g.lineStyle(2.5, 0xffffff, 0.70);
-    if (isHoriz) {
-      g.beginPath(); g.moveTo(x+5,y+2); g.lineTo(x+sw-5,y+2); g.strokePath();
-      g.beginPath(); g.moveTo(x+5,y+sh-2); g.lineTo(x+sw-5,y+sh-2); g.strokePath();
-    } else {
-      g.beginPath(); g.moveTo(x+2,y+5); g.lineTo(x+2,y+sh-5); g.strokePath();
-      g.beginPath(); g.moveTo(x+sw-2,y+5); g.lineTo(x+sw-2,y+sh-5); g.strokePath();
-    }
+    g.beginPath(); g.moveTo(x+2,y+5); g.lineTo(x+2,y+sh-5); g.strokePath();
+    g.beginPath(); g.moveTo(x+sw-2,y+5); g.lineTo(x+sw-2,y+sh-5); g.strokePath();
     g.lineStyle(1.2, 0xffffff, 0.18);
-    g.beginPath();
-    if(isHoriz){ g.moveTo(x+sw*0.25,cy); g.lineTo(x+sw*0.75,cy); }
-    else        { g.moveTo(cx,y+sh*0.25); g.lineTo(cx,y+sh*0.75); }
-    g.strokePath();
+    g.beginPath(); g.moveTo(0,-sh*0.25); g.lineTo(0,sh*0.25); g.strokePath();
   }
 
   _slotFilled(g, cx, cy, cs) {
