@@ -1070,6 +1070,7 @@ class GameScene extends Phaser.Scene {
       color:'#fff',backgroundColor:'#00000066',padding:{x:8,y:4},
     }).setInteractive({useHandCursor:true})
       .on('pointerdown',()=>{
+        if(this.wordMode) currentTab='자음';  // 단어모드에서 나가면 카드 화면으로
         this.cameras.main.fadeOut(200);
         this.time.delayedCall(200,()=>this.scene.start('Menu'));
       });
@@ -1089,11 +1090,23 @@ class GameScene extends Phaser.Scene {
           done ? 0x2e7d32 : active ? 0x1565C0 : 0x000000,
           done ? 0.9 : active ? 0.88 : 0.45)
           .setStrokeStyle(2, done ? 0x66BB6A : active ? 0x64B5F6 : 0x555555);
-        this.add.text(tx,ty,ch,{
+        const label = this.add.text(tx,ty,ch,{
           fontSize:'22px',fontFamily:'"Malgun Gothic",sans-serif',
           color: done ? '#a5d6a7' : active ? '#fff' : '#888',
         }).setOrigin(0.5);
         if (done) this.add.text(tx+14,ty-14,'✓',{fontSize:'12px',color:'#66BB6A'}).setOrigin(0.5);
+        // 완성했거나 현재 글자 타일은 클릭해서 해당 글자로 이동 가능
+        if (i !== currentWordIdx) {
+          bg.setInteractive({useHandCursor:true});
+          bg.on('pointerover',()=>bg.setStrokeStyle(2,0xFFD700));
+          bg.on('pointerout', ()=>bg.setStrokeStyle(2, done?0x66BB6A:0x555555));
+          bg.on('pointerdown',()=>{
+            if(this.won) return;
+            currentWordIdx = i;
+            this.cameras.main.fadeOut(200);
+            this.time.delayedCall(200,()=>this.scene.start('Game',{ch:currentWord[i],wordMode:true}));
+          });
+        }
       });
     }
   }
@@ -1233,6 +1246,7 @@ class GameScene extends Phaser.Scene {
           this.time.delayedCall(200,()=>this.scene.start('Game',{ch:currentWord[0],wordMode:true}));
         });
         this._btn(W/2+110,H/2+152,'메뉴로 ▶',0x1565C0,()=>{
+          currentTab='자음';   // 메뉴 복귀 시 입력창 대신 카드 화면으로
           this.cameras.main.fadeOut(200);this.time.delayedCall(200,()=>this.scene.start('Menu'));
         });
       } else if (isWordMode) {
