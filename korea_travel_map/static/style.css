@@ -1,0 +1,70 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body { font-family: 'Malgun Gothic', sans-serif; background: #f5f5f5; height: 100vh; display: flex; flex-direction: column; }
+
+#toolbar {
+  display: flex; align-items: center; gap: 16px;
+  padding: 10px 16px; background: #fff; border-bottom: 1px solid #ddd;
+  font-size: 14px;
+}
+.label { font-weight: 700; color: #333; }
+#counter { margin-left: auto; color: #666; }
+#counter strong { color: #1a73e8; }
+
+#app { display: flex; flex: 1; overflow: hidden; }
+
+#map-container {
+  flex: 1; background: #fff; position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+
+#map { width: 100%; height: 100%; }
+
+.region {
+  fill: #fff; stroke: #333; stroke-width: 0.5px; cursor: pointer;
+  transition: fill 0.15s;
+}
+.region:hover { stroke: #000; stroke-width: 1.2px; filter: brightness(0.9); }
+
+/* 컬러 피커 팝업 */
+#color-popup {
+  position: absolute; background: #fff; border: 1px solid #ddd;
+  border-radius: 8px; padding: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  width: 160px; z-index: 100;
+}
+#color-popup.hidden { display: none; }
+#popup-region-name { font-size: 12px; font-weight: 700; color: #333; margin-bottom: 8px; }
+#color-input { width: 100%; height: 36px; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 8px; }
+#popup-actions { display: flex; gap: 4px; }
+#popup-actions button { flex: 1; padding: 5px; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; }
+#btn-apply { background: #1a73e8; color: #fff; }
+#btn-clear { background: #f0f0f0; color: #555; }
+#btn-cancel { background: #f0f0f0; color: #999; }
+
+/* 사진 패널 */
+#photo-panel {
+  width: 260px; border-left: 1px solid #e8e8e8; background: #fafafa;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+#panel-header {
+  padding: 10px 12px; border-bottom: 1px solid #e8e8e8;
+  font-size: 13px; flex-shrink: 0;
+}
+#panel-region { font-weight: 700; color: #222; }
+#panel-count { font-size: 11px; color: #999; margin-top: 2px; }
+
+#photo-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  padding: 8px; overflow-y: auto; flex: 1;
+}
+
+.photo-thumb {
+  aspect-ratio: 1; border-radius: 4px; object-fit: cover;
+  cursor: pointer; background: #e0e0e0;
+}
+.photo-thumb:hover { opacity: 0.85; }
+
+#panel-empty {
+  padding: 20px; text-align: center; color: #bbb; font-size: 13px; margin-top: 40px;
+}
+#panel-empty.hidden { display: none; }

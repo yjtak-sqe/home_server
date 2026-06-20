@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>나의 여행 지도</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="toolbar">
+    <span class="label">🗺️ 나의 대한민국 여행 지도</span>
+    <span id="counter">방문: <strong id="visit-count">0</strong>곳</span>
+  </div>
+
+  <div id="app">
+    <div id="map-container">
+      <svg id="map"></svg>
+
+      <!-- 컬러 피커 팝업 -->
+      <div id="color-popup" class="hidden">
+        <div id="popup-region-name"></div>
+        <input type="color" id="color-input" value="#4CAF50">
+        <div id="popup-actions">
+          <button id="btn-apply">색칠</button>
+          <button id="btn-clear">지우기</button>
+          <button id="btn-cancel">취소</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="photo-panel">
+      <div id="panel-header">
+        <div id="panel-region"></div>
+        <div id="panel-count"></div>
+      </div>
+      <div id="photo-grid"></div>
+      <div id="panel-empty" class="hidden">지역을 클릭하면 사진이 표시됩니다</div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <script src="/map.js"></script>
+</body>
+</html>
