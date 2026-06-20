@@ -55,3 +55,7 @@ merged = gdf.dissolve(by="merge_key").reset_index()[["merge_key", "geometry"]]
 merged = merged.rename(columns={"merge_key": "name"})
 merged.to_file("korea_sigun.geojson", driver="GeoJSON")
 print(f"완료: {len(merged)}개 단위 생성")
+
+leftovers = merged[merged["name"].str.endswith("구")]
+if not leftovers.empty:
+    print(f"경고: 병합되지 않은 구 단위 {len(leftovers)}개 발견: {leftovers['name'].tolist()}")
