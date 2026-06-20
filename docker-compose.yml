@@ -213,6 +213,25 @@ services:
     ports:
       - "8091:8000"
 
+  # ──────────────────────────────────────────
+  # 나의 여행 지도 — 대한민국 방문 기록
+  # 접속: http://서버IP:8094
+  # ──────────────────────────────────────────
+  korea-travel-map:
+    build: ./korea_travel_map
+    image: korea-travel-map:latest
+    container_name: korea-travel-map
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8094:8000"
+    volumes:
+      - korea_travel_data:/data
+    environment:
+      - IMMICH_URL=http://host.docker.internal:2283
+      - IMMICH_API_KEY=여기에_API_키_입력
+
 volumes:
   homarr_config:
   homarr_icons:
@@ -224,3 +243,4 @@ volumes:
   homeassistant_config:
   uptime_kuma_data:
   code_server_config:
+  korea_travel_data:
