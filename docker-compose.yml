@@ -230,7 +230,7 @@ services:
       - korea_travel_data:/data
     environment:
       - IMMICH_URL=http://host.docker.internal:2283
-      - IMMICH_API_KEY=여기에_API_키_입력
+      - IMMICH_API_KEY=Dhy9YmizfgZtDYs8VEGzXq2D1EdD0DX12scBB4Ce1I
 
 volumes:
   homarr_config:

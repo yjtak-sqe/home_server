@@ -1,3 +1,4 @@
+import json
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -11,16 +12,23 @@ from immich import ImmichClient
 
 GEOJSON_PATH = Path(__file__).parent / "geojson" / "korea_sigun.geojson"
 immich_client: ImmichClient
+geojson_index: dict[str, dict] = {}  # region_name -> geometry
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global immich_client
+    global immich_client, geojson_index
     db.init_db()
     immich_client = ImmichClient(
         os.environ["IMMICH_URL"],
         os.environ["IMMICH_API_KEY"],
     )
+    if GEOJSON_PATH.exists():
+        data = json.loads(GEOJSON_PATH.read_text())
+        geojson_index = {
+            f["properties"]["name"]: f["geometry"]
+            for f in data["features"]
+        }
     yield
 
 
@@ -55,9 +63,20 @@ def delete_region(region_id: str):
     return {"ok": True}
 
 
+REGION_LIMITS: dict[str, int] = {
+    "대구광역시": 1000,
+}
+
 @app.get("/api/photos/{region_id}")
 async def get_photos(region_id: str):
-    return await immich_client.search_by_region(region_id)
+    geometry = geojson_index.get(region_id)
+    if not geometry:
+        raise HTTPException(status_code=404, detail="Region not found")
+    results = await immich_client.search_by_region(region_id, geometry)
+    limit = REGION_LIMITS.get(region_id)
+    if limit:
+        results = results[:limit]
+    return results
 
 
 @app.get("/api/thumbnails/{asset_id}")
